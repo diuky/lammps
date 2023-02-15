@@ -27,7 +27,7 @@ using namespace LAMMPS_NS;
 
 /* ---------------------------------------------------------------------- */
 
-AtomVecPeri::AtomVecLpm(LAMMPS *lmp) : AtomVec(lmp)
+AtomVecLpm::AtomVecLpm(LAMMPS *lmp) : AtomVec(lmp)
 {
 
   molecular = Atom::ATOMIC;
@@ -61,7 +61,7 @@ AtomVecPeri::AtomVecLpm(LAMMPS *lmp) : AtomVec(lmp)
    needed in replicate when 2 atom classes exist and it calls pack_restart()
 ------------------------------------------------------------------------- */
 
-void AtomVecPeri::grow_pointers()
+void AtomVecLpm::grow_pointers()
 {
   rmass = atom->rmass;
   vfrac = atom->vfrac;
@@ -73,7 +73,7 @@ void AtomVecPeri::grow_pointers()
    initialize non-zero atom quantities
 ------------------------------------------------------------------------- */
 
-void AtomVecPeri::create_atom_post(int ilocal)
+void AtomVecLpm::create_atom_post(int ilocal)
 {
   vfrac[ilocal] = 1.0;
   rmass[ilocal] = 1.0;
@@ -88,7 +88,7 @@ void AtomVecPeri::create_atom_post(int ilocal)
    or initialize other atom quantities
 ------------------------------------------------------------------------- */
 
-void AtomVecPeri::data_atom_post(int ilocal)
+void AtomVecLpm::data_atom_post(int ilocal)
 {
   s0[ilocal] = DBL_MAX;
   x0[ilocal][0] = x[ilocal][0];
@@ -103,7 +103,7 @@ void AtomVecPeri::data_atom_post(int ilocal)
    return -1 if name is unknown to this atom style
 ------------------------------------------------------------------------- */
 
-int AtomVecPeri::property_atom(const std::string &name)
+int AtomVecLpm::property_atom(const std::string &name)
 {
   if (name == "vfrac") return 0;
   if (name == "s0") return 1;
@@ -115,7 +115,7 @@ int AtomVecPeri::property_atom(const std::string &name)
    index maps to data specific to this atom style
 ------------------------------------------------------------------------- */
 
-void AtomVecPeri::pack_property_atom(int index, double *buf, int nvalues, int groupbit)
+void AtomVecLpm::pack_property_atom(int index, double *buf, int nvalues, int groupbit)
 {
   int *mask = atom->mask;
   int nlocal = atom->nlocal;
