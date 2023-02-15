@@ -1,7 +1,7 @@
 /* -*- c++ -*- ----------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -19,6 +19,7 @@
 #include <cmath>
 #include <map>
 #include <unordered_set>
+#include <vector>
 
 namespace LAMMPS_NS {
 class Region;
@@ -40,6 +41,7 @@ class Domain : protected Pointers {
                          // 3 = shrink-wrap non-per w/ min
 
   int triclinic;    // 0 = orthog box, 1 = triclinic
+  int tiltsmall;    // 1 if limit tilt, else 0
 
   // orthogonal box
 
@@ -117,9 +119,9 @@ class Domain : protected Pointers {
   void image_check();
   void box_too_small_check();
   void subbox_too_small_check(double);
-  void minimum_image(double &, double &, double &) const;
-  void minimum_image(double *delta) const { minimum_image(delta[0], delta[1], delta[2]); }
-  void minimum_image_once(double *) const;
+  void minimum_image(double &, double &, double &);
+  void minimum_image(double *);
+  void minimum_image_once(double *);
   int closest_image(int, int);
   int closest_image(const double *const, int);
   void closest_image(const double *const, const double *const, double *const);
@@ -139,6 +141,7 @@ class Domain : protected Pointers {
   const std::vector<Region *> get_region_by_style(const std::string &) const;
   const std::vector<Region *> get_region_list();
   void set_boundary(int, char **, int);
+  void set_box(int, char **);
   void print_box(const std::string &);
   void boundary_string(char *);
 

@@ -1,7 +1,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -72,7 +72,7 @@ void AtomVecBond::grow_pointers()
 
 void AtomVecBond::pack_restart_pre(int ilocal)
 {
-  // ensure bond_negative vector is needed length
+  // insure bond_negative vector is needed length
 
   if (bond_per_atom < atom->bond_per_atom) {
     delete[] bond_negative;

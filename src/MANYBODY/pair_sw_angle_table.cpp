@@ -2,7 +2,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -750,14 +750,4 @@ void PairSWAngleTable::uf_lookup(ParamTable *pm, double x, double &u, double &f)
       ((a * a * a - a) * pm->angtable->f2[itable] + (b * b * b - b) * pm->angtable->f2[itable+1]) *
       pm->angtable->deltasq6;
   }
-}
-
-
-/* ----------------------------------------------------------------------
-   global settings
-------------------------------------------------------------------------- */
-
-void PairSWAngleTable::settings(int narg, char **/*arg*/)
-{
-  if (narg != 0) error->all(FLERR,"Illegal pair_style sw/angle/table command");
 }

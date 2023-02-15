@@ -2,7 +2,7 @@
 /* -*- c++ -*- ----------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -33,10 +33,20 @@ union d_ubuf {
   d_ubuf(int arg) : i(arg) {}
 };
 
-class AtomVecKokkos : virtual public AtomVec {
+class AtomVecKokkos : public AtomVec {
  public:
   AtomVecKokkos(class LAMMPS *);
-  ~AtomVecKokkos() override;
+
+  bigint roundup(bigint) override;
+  int pack_comm(int, int *, double *, int, int *) override;
+  int pack_comm_vel(int, int *, double *, int, int *) override;
+  void unpack_comm(int, int, double *) override;
+  void unpack_comm_vel(int, int, double *) override;
+  int pack_reverse(int, int, double *) override;
+  void unpack_reverse(int, int *, double *) override;
+  void data_vel(int, const std::vector<std::string> &) override;
+  void pack_vel(double **) override;
+  void write_vel(FILE *, int, double **) override;
 
   virtual void sync(ExecutionSpace space, unsigned int mask) = 0;
   virtual void modified(ExecutionSpace space, unsigned int mask) = 0;
@@ -120,6 +130,7 @@ class AtomVecKokkos : virtual public AtomVec {
   int no_comm_vel_flag,no_border_vel_flag;
 
  protected:
+
   HAT::t_x_array h_x;
   HAT::t_v_array h_v;
   HAT::t_f_array h_f;
@@ -127,8 +138,6 @@ class AtomVecKokkos : virtual public AtomVec {
   class CommKokkos *commKK;
   size_t buffer_size;
   void* buffer;
-
-  DAT::tdual_int_1d k_count;
 
   #ifdef LMP_KOKKOS_GPU
   template<class ViewType>
@@ -194,3 +203,4 @@ class AtomVecKokkos : virtual public AtomVec {
 }
 
 #endif
+

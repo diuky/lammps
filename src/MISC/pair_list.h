@@ -1,7 +1,7 @@
 /* -*- c++ -*- ----------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -49,15 +49,11 @@ class PairList : public Pair {
   struct lj126_p {
     double epsilon, sigma;
   };
-  struct quartic_p {
-    double k, r0, b1, b2;
-  };
 
   union param_u {
     harm_p harm;
     morse_p morse;
     lj126_p lj126;
-    quartic_p quartic;
   };
 
   struct list_param {

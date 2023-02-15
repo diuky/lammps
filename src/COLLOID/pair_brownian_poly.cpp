@@ -2,7 +2,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -72,6 +72,7 @@ void PairBrownianPoly::compute(int eflag, int vflag)
   int nlocal = atom->nlocal;
 
   double vxmu2f = force->vxmu2f;
+  int overlaps = 0;
   double randr;
   double prethermostat;
   double xl[3],a_sq,a_sh,a_pu,Fbmag;
@@ -174,6 +175,10 @@ void PairBrownianPoly::compute(int eflag, int vflag)
         // scalar resistances a_sq and a_sh
 
         h_sep = r - radi-radj;
+
+        // check for overlaps
+
+        if (h_sep < 0.0) overlaps++;
 
         // if less than minimum gap, use minimum gap instead
 
@@ -325,7 +330,7 @@ void PairBrownianPoly::init_style()
   if (!atom->sphere_flag)
     error->all(FLERR,"Pair brownian/poly requires atom style sphere");
 
-  // ensure all particles are finite-size
+  // insure all particles are finite-size
   // for pair hybrid, should limit test to types using the pair style
 
   double *radius = atom->radius;
@@ -357,7 +362,7 @@ void PairBrownianPoly::init_style()
         error->all(FLERR,
                    "Cannot use multiple fix wall commands with pair brownian");
       flagwall = 1; // Walls exist
-      wallfix = dynamic_cast<FixWall *>(modify->fix[i]);
+      wallfix = dynamic_cast<FixWall *>( modify->fix[i]);
       if (wallfix->xflag) flagwall = 2; // Moving walls exist
     }
   }

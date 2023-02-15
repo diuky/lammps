@@ -1,7 +1,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -14,6 +14,7 @@
 #include "fix_nve_noforce.h"
 
 #include "atom.h"
+#include "error.h"
 #include "respa.h"
 #include "update.h"
 
@@ -24,7 +25,7 @@ using namespace FixConst;
 
 FixNVENoforce::FixNVENoforce(LAMMPS *lmp, int narg, char **arg) : Fix(lmp, narg, arg)
 {
-  if (narg != 3) utils::missing_cmd_args(FLERR, "fix nve/noforce", error);
+  if (narg != 3) error->all(FLERR, "Illegal fix nve/noforce command");
 
   time_integrate = 1;
 }

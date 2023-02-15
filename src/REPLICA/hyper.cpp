@@ -2,7 +2,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -22,6 +22,7 @@
 #include "fix_event_hyper.h"
 #include "fix_hyper.h"
 #include "integrate.h"
+#include "memory.h"
 #include "min.h"
 #include "modify.h"
 #include "neighbor.h"
@@ -38,7 +39,7 @@ enum{NOHYPER,GLOBAL,LOCAL};
 
 /* ---------------------------------------------------------------------- */
 
-Hyper::Hyper(LAMMPS *_lmp) : Command(_lmp) {}
+Hyper::Hyper(LAMMPS *lmp) : Command(lmp), dumplist(nullptr) {}
 
 /* ----------------------------------------------------------------------
    perform hyperdynamics simulation
@@ -59,8 +60,11 @@ void Hyper::command(int narg, char **arg)
   int nsteps = utils::inumeric(FLERR,arg[0],false,lmp);
   t_event = utils::inumeric(FLERR,arg[1],false,lmp);
 
-  auto id_fix = utils::strdup(arg[2]);
-  auto id_compute = utils::strdup(arg[3]);
+  auto id_fix = new char[strlen(arg[2])+1];
+  strcpy(id_fix,arg[2]);
+
+  auto id_compute = new char[strlen(arg[3])+1];
+  strcpy(id_compute,arg[3]);
 
   options(narg-4,&arg[4]);
 
@@ -85,7 +89,7 @@ void Hyper::command(int narg, char **arg)
   } else {
     int ifix = modify->find_fix(id_fix);
     if (ifix < 0) error->all(FLERR,"Could not find fix ID for hyper");
-    fix_hyper = dynamic_cast<FixHyper *>(modify->fix[ifix]);
+    fix_hyper = dynamic_cast<FixHyper *>( modify->fix[ifix]);
     int dim;
     int *hyperflag = (int *) fix_hyper->extract("hyperflag",dim);
     if (hyperflag == nullptr || *hyperflag == 0)
@@ -97,7 +101,7 @@ void Hyper::command(int narg, char **arg)
 
   // create FixEventHyper class to store event and pre-quench states
 
-  fix_event = dynamic_cast<FixEventHyper *>(modify->add_fix("hyper_event all EVENT/HYPER"));
+  fix_event = dynamic_cast<FixEventHyper *>( modify->add_fix("hyper_event all EVENT/HYPER"));
 
   // create Finish for timing output
 
@@ -108,7 +112,7 @@ void Hyper::command(int narg, char **arg)
 
   int icompute = modify->find_compute(id_compute);
   if (icompute < 0) error->all(FLERR,"Could not find compute ID for hyper");
-  compute_event = dynamic_cast<ComputeEventDisplace *>(modify->compute[icompute]);
+  compute_event = dynamic_cast<ComputeEventDisplace *>( modify->compute[icompute]);
   compute_event->reset_extra_compute_fix("hyper_event");
 
   // reset reneighboring criteria since will perform minimizations
@@ -151,10 +155,10 @@ void Hyper::command(int narg, char **arg)
 
   // cannot use hyper with time-dependent fixes or regions
 
-  for (auto &ifix : modify->get_fix_list())
+  for (auto ifix : modify->get_fix_list())
     if (ifix->time_depend) error->all(FLERR,"Cannot use hyper with a time-dependent fix defined");
 
-  for (auto &reg : domain->get_region_list())
+  for (auto reg : domain->get_region_list())
     if (reg->dynamic_check())
       error->all(FLERR,"Cannot use hyper with a time-dependent region defined");
 
@@ -176,7 +180,9 @@ void Hyper::command(int narg, char **arg)
 
   fix_event->store_state_quench();
   quench(1);
-  if (dumpflag) for (auto &idump : dumplist) idump->write();
+  if (dumpflag)
+    for (int idump = 0; idump < ndump; idump++)
+      output->dump[dumplist[idump]]->write();
   fix_event->store_event();
   if (hyperenable) fix_hyper->build_bond_list(0);
   fix_event->restore_state_quench();
@@ -205,7 +211,9 @@ void Hyper::command(int narg, char **arg)
       nevent++;
       nevent_atoms += ecount;
 
-      if (dumpflag) for (auto &idump : dumplist) idump->write();
+      if (dumpflag)
+        for (int idump = 0; idump < ndump; idump++)
+          output->dump[dumplist[idump]]->write();
       fix_event->store_event();
       if (hyperenable) fix_hyper->build_bond_list(ecount);
 
@@ -340,6 +348,7 @@ void Hyper::command(int narg, char **arg)
 
   delete [] id_fix;
   delete [] id_compute;
+  memory->destroy(dumplist);
   delete finish;
   modify->delete_fix("hyper_event");
 
@@ -438,6 +447,8 @@ void Hyper::options(int narg, char **arg)
   maxiter = 40;
   maxeval = 50;
   dumpflag = 0;
+  ndump = 0;
+  dumplist = nullptr;
   rebond = 0;
 
   int iarg = 0;
@@ -454,9 +465,11 @@ void Hyper::options(int narg, char **arg)
     } else if (strcmp(arg[iarg],"dump") == 0) {
       if (iarg+2 > narg) error->all(FLERR,"Illegal hyper command");
       dumpflag = 1;
-      auto idump = output->get_dump_by_id(arg[iarg+1]);
-      if (!idump) error->all(FLERR,"Dump ID {} in hyper command does not exist", arg[iarg+1]);
-      dumplist.emplace_back(idump);
+      int idump = output->find_dump(arg[iarg+1]);
+      if (idump < 0)
+        error->all(FLERR,"Dump ID in hyper command does not exist");
+      memory->grow(dumplist,ndump+1,"hyper:dumplist");
+      dumplist[ndump++] = idump;
       iarg += 2;
 
     } else if (strcmp(arg[iarg],"rebond") == 0) {

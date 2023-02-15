@@ -2,7 +2,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -36,7 +36,7 @@ Run::Run(LAMMPS *lmp) : Command(lmp) {}
 
 void Run::command(int narg, char **arg)
 {
-  if (narg < 1) utils::missing_cmd_args(FLERR, "run", error);
+  if (narg < 1) error->all(FLERR,"Illegal run command");
 
   if (domain->box_exist == 0)
     error->all(FLERR,"Run command before simulation box is defined");
@@ -62,25 +62,25 @@ void Run::command(int narg, char **arg)
   int iarg = 1;
   while (iarg < narg) {
     if (strcmp(arg[iarg],"upto") == 0) {
-      if (iarg+1 > narg) utils::missing_cmd_args(FLERR, "run upto", error);
+      if (iarg+1 > narg) error->all(FLERR,"Illegal run command");
       uptoflag = 1;
       iarg += 1;
     } else if (strcmp(arg[iarg],"start") == 0) {
-      if (iarg+2 > narg) utils::missing_cmd_args(FLERR, "run start", error);
+      if (iarg+2 > narg) error->all(FLERR,"Illegal run command");
       startflag = 1;
       start = utils::bnumeric(FLERR,arg[iarg+1],false,lmp);
       iarg += 2;
     } else if (strcmp(arg[iarg],"stop") == 0) {
-      if (iarg+2 > narg) utils::missing_cmd_args(FLERR, "run stop", error);
+      if (iarg+2 > narg) error->all(FLERR,"Illegal run command");
       stopflag = 1;
       stop = utils::bnumeric(FLERR,arg[iarg+1],false,lmp);
       iarg += 2;
     } else if (strcmp(arg[iarg],"pre") == 0) {
-      if (iarg+2 > narg) utils::missing_cmd_args(FLERR, "run pre", error);
+      if (iarg+2 > narg) error->all(FLERR,"Illegal run command");
       preflag = utils::logical(FLERR,arg[iarg+1],false,lmp);
       iarg += 2;
     } else if (strcmp(arg[iarg],"post") == 0) {
-      if (iarg+2 > narg) utils::missing_cmd_args(FLERR, "run post", error);
+      if (iarg+2 > narg) error->all(FLERR,"Illegal run command");
       postflag = utils::logical(FLERR,arg[iarg+1],false,lmp);
       iarg += 2;
 
@@ -89,15 +89,15 @@ void Run::command(int narg, char **arg)
       // set ncommands = 0 if single command and it is "NULL"
 
     } else if (strcmp(arg[iarg],"every") == 0) {
-      if (iarg+3 > narg) utils::missing_cmd_args(FLERR, "run every", error);
+      if (iarg+3 > narg) error->all(FLERR,"Illegal run command");
       nevery = utils::inumeric(FLERR,arg[iarg+1],false,lmp);
-      if (nevery <= 0) error->all(FLERR, "Invalid run every argument: {}", nevery);
+      if (nevery <= 0) error->all(FLERR,"Illegal run command");
       first = iarg+2;
       last = narg-1;
       ncommands = last-first + 1;
       if (ncommands == 1 && strcmp(arg[first],"NULL") == 0) ncommands = 0;
       iarg = narg;
-    } else error->all(FLERR,"Unknown run keyword: {}", arg[iarg]);
+    } else error->all(FLERR,"Illegal run command");
   }
 
   // set nsteps as integer, using upto value if specified
@@ -105,12 +105,12 @@ void Run::command(int narg, char **arg)
   int nsteps;
   if (!uptoflag) {
     if (nsteps_input < 0 || nsteps_input > MAXSMALLINT)
-      error->all(FLERR,"Invalid run command N value: {}", nsteps_input);
+      error->all(FLERR,"Invalid run command N value");
     nsteps = static_cast<int> (nsteps_input);
   } else {
     bigint delta = nsteps_input - update->ntimestep;
     if (delta < 0 || delta > MAXSMALLINT)
-      error->all(FLERR,"Invalid run command upto value: {}", delta);
+      error->all(FLERR,"Invalid run command upto value");
     nsteps = static_cast<int> (delta);
   }
 
@@ -118,13 +118,13 @@ void Run::command(int narg, char **arg)
 
   if (startflag) {
     if (start < 0)
-      error->all(FLERR,"Invalid run command start value: {}", start);
+      error->all(FLERR,"Invalid run command start/stop value");
     if (start > update->ntimestep)
       error->all(FLERR,"Run command start value is after start of run");
   }
   if (stopflag) {
     if (stop < 0)
-      error->all(FLERR,"Invalid run command stop value: {}", stop);
+      error->all(FLERR,"Invalid run command start/stop value");
     if (stop < update->ntimestep + nsteps)
       error->all(FLERR,"Run command stop value is before end of run");
   }

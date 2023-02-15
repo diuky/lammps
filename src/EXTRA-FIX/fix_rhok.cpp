@@ -2,7 +2,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
    certain rights in this software.  This software is distributed under
@@ -31,15 +31,15 @@ using namespace FixConst;
 using namespace MathConst;
 
 static const char cite_fix_rhok[] =
-  "Bias on the collective density field (fix rhok): doi:10.1063/1.4818747\n\n"
+  "Bias on the collective density field (fix rhok):\n\n"
   "@Article{pedersen_jcp139_104102_2013,\n"
-  "title = {Direct Calculation of the Solid-Liquid {G}ibbs Free Energy Difference in a Single Equilibrium Simulation},\n"
+  "title = {Direct calculation of the solid-liquid Gibbs free energy difference in a single equilibrium simulation},\n"
   "volume = {139},\n"
   "number = {10},\n"
   "url = {https://aip.scitation.org/doi/10.1063/1.4818747},\n"
   "doi = {10.1063/1.4818747},\n"
   "urldate = {2017-10-03},\n"
-  "journal = {J.~Chem.\\ Phys.},\n"
+  "journal = {J. Chem. Phys.},\n"
   "author = {Pedersen, Ulf R.},\n"
   "year = {2013},\n"
   "pages = {104102}\n"
@@ -96,7 +96,7 @@ void FixRhok::init()
 {
   // RESPA boilerplate
   if (utils::strmatch(update->integrate_style,"^respa"))
-    mNLevelsRESPA = (dynamic_cast<Respa *>(update->integrate))->nlevels;
+    mNLevelsRESPA = (dynamic_cast<Respa *>( update->integrate))->nlevels;
 
   // Count the number of affected particles
   int nThisLocal = 0;
@@ -109,7 +109,7 @@ void FixRhok::init()
   }
   MPI_Allreduce( &nThisLocal, &mNThis,
                  1, MPI_INT, MPI_SUM, world );
-  mSqrtNThis = sqrt( (double)mNThis );
+  mSqrtNThis = sqrt( mNThis );
 }
 
 /* ---------------------------------------------------------------------- */
@@ -121,9 +121,9 @@ void FixRhok::setup( int inVFlag )
     post_force( inVFlag );
   else
     {
-      (dynamic_cast<Respa *>(update->integrate))->copy_flevel_f( mNLevelsRESPA - 1 );
+      (dynamic_cast<Respa *>( update->integrate))->copy_flevel_f( mNLevelsRESPA - 1 );
       post_force_respa( inVFlag, mNLevelsRESPA - 1,0 );
-      (dynamic_cast<Respa *>(update->integrate))->copy_f_flevel( mNLevelsRESPA - 1 );
+      (dynamic_cast<Respa *>( update->integrate))->copy_f_flevel( mNLevelsRESPA - 1 );
     }
 }
 

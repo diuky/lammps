@@ -2,7 +2,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -41,8 +41,8 @@ using namespace MathConst;
 
 #define RVOUS 1   // 0 for irregular, 1 for all2all
 
-static constexpr double BIG = 1.0e20;
-static constexpr double MASSDELTA = 0.1;
+#define BIG 1.0e20
+#define MASSDELTA 0.1
 
 /* ---------------------------------------------------------------------- */
 
@@ -52,31 +52,26 @@ FixShake::FixShake(LAMMPS *lmp, int narg, char **arg) :
   loop_respa(nullptr), step_respa(nullptr), x(nullptr), v(nullptr), f(nullptr), ftmp(nullptr),
   vtmp(nullptr), mass(nullptr), rmass(nullptr), type(nullptr), shake_flag(nullptr),
   shake_atom(nullptr), shake_type(nullptr), xshake(nullptr), nshake(nullptr), list(nullptr),
-  b_count(nullptr), b_count_all(nullptr), b_ave(nullptr), b_max(nullptr), b_min(nullptr),
-  b_ave_all(nullptr), b_max_all(nullptr), b_min_all(nullptr), a_count(nullptr),
+  b_count(nullptr), b_count_all(nullptr), b_atom(nullptr), b_atom_all(nullptr), b_ave(nullptr), b_max(nullptr),
+  b_min(nullptr), b_ave_all(nullptr), b_max_all(nullptr), b_min_all(nullptr), a_count(nullptr),
   a_count_all(nullptr), a_ave(nullptr), a_max(nullptr), a_min(nullptr), a_ave_all(nullptr),
   a_max_all(nullptr), a_min_all(nullptr), atommols(nullptr), onemols(nullptr)
 {
-  energy_global_flag = energy_peratom_flag = 1;
+  MPI_Comm_rank(world,&me);
+  MPI_Comm_size(world,&nprocs);
+
   virial_global_flag = virial_peratom_flag = 1;
-  thermo_energy = thermo_virial = 1;
+  thermo_virial = 1;
   create_attribute = 1;
   dof_flag = 1;
-  scalar_flag = 1;
   stores_ids = 1;
   centroidstressflag = CENTROID_AVAIL;
-  next_output = -1;
-
-  // to avoid uninitialized access
-  vflag_post_force = 0;
-  eflag_pre_reverse = 0;
-  ebond = 0.0;
 
   // error check
 
   molecular = atom->molecular;
   if (molecular == Atom::ATOMIC)
-    error->all(FLERR,"Cannot use fix {} with non-molecular system", style);
+    error->all(FLERR,"Cannot use fix shake with non-molecular system");
 
   // perform initial allocation of atom-based arrays
   // register with Atom class
@@ -97,9 +92,8 @@ FixShake::FixShake(LAMMPS *lmp, int narg, char **arg) :
   comm_forward = 3;
 
   // parse SHAKE args
-  auto mystyle = fmt::format("fix {}",style);
 
-  if (narg < 8) utils::missing_cmd_args(FLERR,mystyle, error);
+  if (narg < 8) error->all(FLERR,"Illegal fix shake command");
 
   tolerance = utils::numeric(FLERR,arg[3],false,lmp);
   max_iter = utils::inumeric(FLERR,arg[4],false,lmp);
@@ -139,55 +133,49 @@ FixShake::FixShake(LAMMPS *lmp, int narg, char **arg) :
     else if (mode == 'b') {
       int i = utils::inumeric(FLERR,arg[next],false,lmp);
       if (i < 1 || i > atom->nbondtypes)
-        error->all(FLERR,"Invalid bond type index for {}", mystyle);
+        error->all(FLERR,"Invalid bond type index for fix shake");
       bond_flag[i] = 1;
 
     } else if (mode == 'a') {
       int i = utils::inumeric(FLERR,arg[next],false,lmp);
       if (i < 1 || i > atom->nangletypes)
-        error->all(FLERR,"Invalid angle type index for {}", mystyle);
+        error->all(FLERR,"Invalid angle type index for fix shake");
       angle_flag[i] = 1;
 
     } else if (mode == 't') {
       int i = utils::inumeric(FLERR,arg[next],false,lmp);
       if (i < 1 || i > atom->ntypes)
-        error->all(FLERR,"Invalid atom type index for {}", mystyle);
+        error->all(FLERR,"Invalid atom type index for fix shake");
       type_flag[i] = 1;
 
     } else if (mode == 'm') {
       double massone = utils::numeric(FLERR,arg[next],false,lmp);
-      if (massone == 0.0) error->all(FLERR,"Invalid atom mass for {}", mystyle);
+      if (massone == 0.0) error->all(FLERR,"Invalid atom mass for fix shake");
       if (nmass == atom->ntypes)
-        error->all(FLERR,"Too many masses for {}", mystyle);
+        error->all(FLERR,"Too many masses for fix shake");
       mass_list[nmass++] = massone;
 
-    } else error->all(FLERR,"Unknown {} command option: {}", mystyle, arg[next]);
+    } else error->all(FLERR,"Illegal fix shake command");
     next++;
   }
 
   // parse optional args
 
   onemols = nullptr;
-  kbond = 1.0e6*force->boltz;
 
   int iarg = next;
   while (iarg < narg) {
-    if (strcmp(arg[iarg],"mol") == 0) {
-      if (iarg+2 > narg) utils::missing_cmd_args(FLERR,mystyle+" mol",error);
+    if (strcmp(arg[next],"mol") == 0) {
+      if (iarg+2 > narg) error->all(FLERR,"Illegal fix shake command");
       int imol = atom->find_molecule(arg[iarg+1]);
       if (imol == -1)
-        error->all(FLERR,"Molecule template ID {} for {} does not exist", mystyle, arg[iarg+1]);
-      if ((atom->molecules[imol]->nset > 1) && (comm->me == 0))
-        error->warning(FLERR,"Molecule template for {} has multiple molecules", mystyle);
+        error->all(FLERR,"Molecule template ID for fix shake does not exist");
+      if (atom->molecules[imol]->nset > 1 && comm->me == 0)
+        error->warning(FLERR,"Molecule template for fix shake has multiple molecules");
       onemols = &atom->molecules[imol];
       nmol = onemols[0]->nset;
       iarg += 2;
-    } else if (strcmp(arg[iarg],"kbond") == 0) {
-      if (iarg+2 > narg) utils::missing_cmd_args(FLERR,mystyle+" kbond",error);
-      kbond = utils::numeric(FLERR, arg[iarg+1], false, lmp);
-      if (kbond < 0) error->all(FLERR,"Illegal {} kbond value {}. Must be >= 0.0", mystyle, kbond);
-      iarg += 2;
-    } else error->all(FLERR,"Unknown {} command option: {}", mystyle, arg[iarg]);
+    } else error->all(FLERR,"Illegal fix shake command");
   }
 
   // error check for Molecule template
@@ -195,7 +183,7 @@ FixShake::FixShake(LAMMPS *lmp, int narg, char **arg) :
   if (onemols) {
     for (int i = 0; i < nmol; i++)
       if (onemols[i]->shakeflag == 0)
-        error->all(FLERR,"Fix {} molecule template must have shake info", style);
+        error->all(FLERR,"Fix shake molecule template must have shake info");
   }
 
   // allocate bond and angle distance arrays, indexed from 1 to n
@@ -209,6 +197,8 @@ FixShake::FixShake(LAMMPS *lmp, int narg, char **arg) :
     int nb = atom->nbondtypes + 1;
     b_count = new int[nb];
     b_count_all = new int[nb];
+    b_atom = new int[nb];
+    b_atom_all = new int[nb];
     b_ave = new double[nb];
     b_ave_all = new double[nb];
     b_max = new double[nb];
@@ -301,6 +291,8 @@ FixShake::~FixShake()
   if (output_every) {
     delete[] b_count;
     delete[] b_count_all;
+    delete[] b_atom;
+    delete[] b_atom_all;
     delete[] b_ave;
     delete[] b_ave_all;
     delete[] b_max;
@@ -329,9 +321,6 @@ int FixShake::setmask()
   mask |= PRE_NEIGHBOR;
   mask |= POST_FORCE;
   mask |= POST_FORCE_RESPA;
-  mask |= MIN_PRE_REVERSE;
-  mask |= MIN_POST_FORCE;
-  mask |= POST_RUN;
   return mask;
 }
 
@@ -346,24 +335,28 @@ void FixShake::init()
   double rsq,angle;
 
   // error if more than one shake fix
-  auto pattern = fmt::format("^{}",style);
 
-  if (modify->get_fix_by_style(pattern).size() > 1)
-    error->all(FLERR,"More than one fix {} instance",style);
+  int count = 0;
+  for (i = 0; i < modify->nfix; i++)
+    if (strcmp(modify->fix[i]->style,"shake") == 0) count++;
+  if (count > 1) error->all(FLERR,"More than one fix shake");
 
   // cannot use with minimization since SHAKE turns off bonds
   // that should contribute to potential energy
 
-  if ((comm->me == 0) && (update->whichflag == 2))
-    error->warning(FLERR,"Using fix {} with minimization.\n  Substituting constraints with "
-                   "harmonic restraint forces using kbond={:.4g}", style, kbond);
+  if (update->whichflag == 2)
+    error->all(FLERR,"Fix shake cannot be used with minimization");
 
-  // error if a fix changing the box comes before shake fix
-  bool boxflag = false;
-  for (auto &ifix : modify->get_fix_list()) {
-   if (boxflag && utils::strmatch(ifix->style,pattern))
-     error->all(FLERR,"Fix {} must come before any box changing fix", style);
-    if (ifix->box_change) boxflag = true;
+  // error if npt,nph fix comes before shake fix
+
+  for (i = 0; i < modify->nfix; i++) {
+    if (strcmp(modify->fix[i]->style,"npt") == 0) break;
+    if (strcmp(modify->fix[i]->style,"nph") == 0) break;
+  }
+  if (i < modify->nfix) {
+    for (int j = i; j < modify->nfix; j++)
+      if (strcmp(modify->fix[j]->style,"shake") == 0)
+        error->all(FLERR,"Shake fix must come before NPT/NPH fix");
   }
 
   // if rRESPA, find associated fix that must exist
@@ -374,10 +367,10 @@ void FixShake::init()
   if (utils::strmatch(update->integrate_style,"^respa")) {
     if (update->whichflag > 0) {
       auto fixes = modify->get_fix_by_style("^RESPA");
-      if (fixes.size() > 0) fix_respa = dynamic_cast<FixRespa *>(fixes.front());
+      if (fixes.size() > 0) fix_respa = dynamic_cast<FixRespa *>( fixes.front());
       else error->all(FLERR,"Run style respa did not create fix RESPA");
     }
-    auto respa_style = dynamic_cast<Respa *>(update->integrate);
+    auto respa_style = dynamic_cast<Respa *>( update->integrate);
     nlevels_respa = respa_style->nlevels;
     loop_respa = respa_style->loop;
     step_respa = respa_style->step;
@@ -386,7 +379,7 @@ void FixShake::init()
   // set equilibrium bond distances
 
   if (force->bond == nullptr)
-    error->all(FLERR,"Bond style must be defined for fix {}",style);
+    error->all(FLERR,"Bond potential must be defined for SHAKE");
   for (i = 1; i <= atom->nbondtypes; i++)
     bond_distance[i] = force->bond->equilibrium_distance(i);
 
@@ -397,7 +390,7 @@ void FixShake::init()
   for (i = 1; i <= atom->nangletypes; i++) {
     if (angle_flag[i] == 0) continue;
     if (force->angle == nullptr)
-      error->all(FLERR,"Angle style must be defined for fix {}",style);
+      error->all(FLERR,"Angle potential must be defined for SHAKE");
 
     // scan all atoms for a SHAKE angle cluster
     // extract bond types for the 2 bonds in the cluster
@@ -424,9 +417,9 @@ void FixShake::init()
     // error check for any bond types that are not the same
 
     MPI_Allreduce(&flag,&flag_all,1,MPI_INT,MPI_MAX,world);
-    if (flag_all) error->all(FLERR,"Fix {} angles have different bond types", style);
+    if (flag_all) error->all(FLERR,"Shake angles have different bond types");
 
-    // ensure all procs have bond types
+    // insure all procs have bond types
 
     MPI_Allreduce(&bond1_type,&flag_all,1,MPI_INT,MPI_MAX,world);
     bond1_type = flag_all;
@@ -502,23 +495,6 @@ void FixShake::setup(int vflag)
 }
 
 /* ----------------------------------------------------------------------
-   during minimization fix SHAKE adds strong bond forces
-------------------------------------------------------------------------- */
-
-void FixShake::min_setup(int vflag)
-{
-  pre_neighbor();
-  min_post_force(vflag);
-}
-
-/* --------------------------------------------------------------------- */
-
-void FixShake::setup_pre_reverse(int eflag, int vflag)
-{
-  min_pre_reverse(eflag,vflag);
-}
-
-/* ----------------------------------------------------------------------
    build list of SHAKE clusters to constrain
    if one or more atoms in cluster are on this proc,
      this proc lists the cluster exactly once
@@ -526,7 +502,6 @@ void FixShake::setup_pre_reverse(int eflag, int vflag)
 
 void FixShake::pre_neighbor()
 {
-  ebond = 0.0;
   int atom1,atom2,atom3,atom4;
 
   // local copies of atom quantities
@@ -558,17 +533,19 @@ void FixShake::pre_neighbor()
         atom1 = atom->map(shake_atom[i][0]);
         atom2 = atom->map(shake_atom[i][1]);
         if (atom1 == -1 || atom2 == -1)
-          error->one(FLERR,"Shake atoms {} {} missing on proc {} at step {}",shake_atom[i][0],
-                     shake_atom[i][1],comm->me,update->ntimestep);
+          error->one(FLERR,"Shake atoms {} {} missing on proc "
+                                       "{} at step {}",shake_atom[i][0],
+                                       shake_atom[i][1],me,update->ntimestep);
         if (i <= atom1 && i <= atom2) list[nlist++] = i;
       } else if (shake_flag[i] % 2 == 1) {
         atom1 = atom->map(shake_atom[i][0]);
         atom2 = atom->map(shake_atom[i][1]);
         atom3 = atom->map(shake_atom[i][2]);
         if (atom1 == -1 || atom2 == -1 || atom3 == -1)
-          error->one(FLERR,"Shake atoms {} {} {} missing on proc {} at step {}",shake_atom[i][0],
+          error->one(FLERR,"Shake atoms {} {} {} missing on proc "
+                                       "{} at step {}",shake_atom[i][0],
                                        shake_atom[i][1],shake_atom[i][2],
-                                       comm->me,update->ntimestep);
+                                       me,update->ntimestep);
         if (i <= atom1 && i <= atom2 && i <= atom3) list[nlist++] = i;
       } else {
         atom1 = atom->map(shake_atom[i][0]);
@@ -576,9 +553,10 @@ void FixShake::pre_neighbor()
         atom3 = atom->map(shake_atom[i][2]);
         atom4 = atom->map(shake_atom[i][3]);
         if (atom1 == -1 || atom2 == -1 || atom3 == -1 || atom4 == -1)
-          error->one(FLERR,"Shake atoms {} {} {} {} missing on proc {} at step {}",shake_atom[i][0],
+          error->one(FLERR,"Shake atoms {} {} {} {} missing on "
+                                       "proc {} at step {}",shake_atom[i][0],
                                        shake_atom[i][1],shake_atom[i][2],
-                                       shake_atom[i][3],comm->me,update->ntimestep);
+                                       shake_atom[i][3],me,update->ntimestep);
         if (i <= atom1 && i <= atom2 && i <= atom3 && i <= atom4)
           list[nlist++] = i;
       }
@@ -597,13 +575,11 @@ void FixShake::post_force(int vflag)
   // communicate results if necessary
 
   unconstrained_update();
-  if (comm->nprocs > 1) comm->forward_comm(this);
+  if (nprocs > 1) comm->forward_comm(this);
 
   // virial setup
 
-  int eflag = eflag_pre_reverse;
-  ev_init(eflag, vflag);
-  ebond = 0.0;
+  v_init(vflag);
 
   // loop over clusters to add constraint forces
 
@@ -643,7 +619,7 @@ void FixShake::post_force_respa(int vflag, int ilevel, int iloop)
   // communicate results if necessary
 
   unconstrained_update_respa(ilevel);
-  if (comm->nprocs > 1) comm->forward_comm(this);
+  if (nprocs > 1) comm->forward_comm(this);
 
   // virial setup only needed on last iteration of innermost level
   //   and if pressure is requested
@@ -666,59 +642,6 @@ void FixShake::post_force_respa(int vflag, int ilevel, int iloop)
 
   // store vflag for coordinate_constraints_end_of_step()
   vflag_post_force = vflag;
-}
-
-/* ----------------------------------------------------------------------
-   store eflag so it can be used in min_post_force
-------------------------------------------------------------------------- */
-
-void FixShake::min_pre_reverse(int eflag, int /*vflag*/)
-{
-  eflag_pre_reverse = eflag;
-}
-
-/* ----------------------------------------------------------------------
-   substitute shake constraints with very strong bonds
-------------------------------------------------------------------------- */
-
-void FixShake::min_post_force(int vflag)
-{
-  if (output_every) {
-    bigint ntimestep = update->ntimestep;
-    if (next_output == ntimestep) stats();
-
-    next_output = ntimestep + output_every;
-    if (ntimestep % output_every != 0)
-      next_output = (ntimestep/output_every)*output_every + output_every;
-  } else next_output = -1;
-
-  int eflag = eflag_pre_reverse;
-  ev_init(eflag, vflag);
-
-  x = atom->x;
-  f = atom->f;
-  nlocal = atom->nlocal;
-  ebond = 0.0;
-
-  // loop over shake clusters to add restraint forces
-
-  for (int i = 0; i < nlist; i++) {
-    int m = list[i];
-    if (shake_flag[m] == 2) {
-      bond_force(shake_atom[m][0], shake_atom[m][1], bond_distance[shake_type[m][0]]);
-    } else if (shake_flag[m] == 3) {
-      bond_force(shake_atom[m][0], shake_atom[m][1], bond_distance[shake_type[m][0]]);
-      bond_force(shake_atom[m][0], shake_atom[m][2], bond_distance[shake_type[m][1]]);
-    } else if (shake_flag[m] == 4) {
-      bond_force(shake_atom[m][0], shake_atom[m][1], bond_distance[shake_type[m][0]]);
-      bond_force(shake_atom[m][0], shake_atom[m][2], bond_distance[shake_type[m][1]]);
-      bond_force(shake_atom[m][0], shake_atom[m][3], bond_distance[shake_type[m][2]]);
-    } else {
-      bond_force(shake_atom[m][0], shake_atom[m][1], bond_distance[shake_type[m][0]]);
-      bond_force(shake_atom[m][0], shake_atom[m][2], bond_distance[shake_type[m][1]]);
-      bond_force(shake_atom[m][1], shake_atom[m][2], angle_distance[shake_type[m][2]]);
-    }
-  }
 }
 
 /* ----------------------------------------------------------------------
@@ -767,7 +690,10 @@ void FixShake::find_clusters()
   tagint tagprev;
   double massone;
 
-  if (comm->me == 0) utils::logmesg(lmp, "Finding {} clusters ...\n",utils::uppercase(style));
+  if ((me == 0) && screen) {
+    if (!rattle) fputs("Finding SHAKE clusters ...\n",screen);
+    else fputs("Finding RATTLE clusters ...\n",screen);
+  }
   atommols = atom->avec->onemols;
 
   tagint *tag = atom->tag;
@@ -869,15 +795,17 @@ void FixShake::find_clusters()
   // else it's an error
 
   flag = 0;
+  int flag2 = 0;
   for (i = 0; i < nlocal; i++)
     for (j = 0; j < npartner[i]; j++) {
       if (partner_type[i][j] == 0) flag++;
       if (!(mask[i] & groupbit)) continue;
       if (!(partner_mask[i][j] & groupbit)) continue;
+      if (partner_bondtype[i][j] == 0) flag2++;
     }
 
   MPI_Allreduce(&flag,&flag_all,1,MPI_INT,MPI_SUM,world);
-  if (flag_all) error->all(FLERR,"Did not find fix {} partner info", style);
+  if (flag_all) error->all(FLERR,"Did not find fix shake partner info");
 
   // -----------------------------------------------------
   // identify SHAKEable bonds
@@ -1087,7 +1015,7 @@ void FixShake::find_clusters()
   tmp = count4;
   MPI_Allreduce(&tmp,&count4,1,MPI_INT,MPI_SUM,world);
 
-  if (comm->me == 0) {
+  if (me == 0) {
     utils::logmesg(lmp,"{:>8} = # of size 2 clusters\n"
                    "{:>8} = # of size 3 clusters\n"
                    "{:>8} = # of size 4 clusters\n"
@@ -1115,8 +1043,8 @@ void FixShake::atom_owners()
   // one datum for each owned atom: datum = owning proc, atomID
 
   for (int i = 0; i < nlocal; i++) {
-    proclist[i] = tag[i] % comm->nprocs;
-    idbuf[i].me = comm->me;
+    proclist[i] = tag[i] % nprocs;
+    idbuf[i].me = me;
     idbuf[i].atomID = tag[i];
   }
 
@@ -1161,7 +1089,7 @@ void FixShake::partner_info(int *npartner, tagint **partner_tag,
   // set values in 4 partner arrays for all partner atoms I own
   // also setup input buf to rendezvous comm
   // input datums = pair of bonded atoms where I do not own partner
-  // owning proc for each datum = partner_tag % comm->nprocs
+  // owning proc for each datum = partner_tag % nprocs
   // datum: atomID = partner_tag (off-proc), partnerID = tag (on-proc)
   //        4 values for my owned atom
 
@@ -1199,7 +1127,7 @@ void FixShake::partner_info(int *npartner, tagint **partner_tag,
         }
 
       } else {
-        proclist[nsend] = partner_tag[i][j] % comm->nprocs;
+        proclist[nsend] = partner_tag[i][j] % nprocs;
         inbuf[nsend].atomID = partner_tag[i][j];
         inbuf[nsend].partnerID = tag[i];
         inbuf[nsend].mask = mask[i];
@@ -1289,7 +1217,7 @@ void FixShake::nshake_info(int *npartner, tagint **partner_tag,
   // set partner_nshake for all partner atoms I own
   // also setup input buf to rendezvous comm
   // input datums = pair of bonded atoms where I do not own partner
-  // owning proc for each datum = partner_tag % comm->nprocs
+  // owning proc for each datum = partner_tag % nprocs
   // datum: atomID = partner_tag (off-proc), partnerID = tag (on-proc)
   //        nshake value for my owned atom
 
@@ -1303,7 +1231,7 @@ void FixShake::nshake_info(int *npartner, tagint **partner_tag,
       if (m >= 0 && m < nlocal) {
         partner_nshake[i][j] = nshake[m];
       } else {
-        proclist[nsend] = partner_tag[i][j] % comm->nprocs;
+        proclist[nsend] = partner_tag[i][j] % nprocs;
         inbuf[nsend].atomID = partner_tag[i][j];
         inbuf[nsend].partnerID = tag[i];
         inbuf[nsend].nshake = nshake[i];
@@ -1367,7 +1295,7 @@ void FixShake::shake_info(int *npartner, tagint **partner_tag,
   // set 3 shake arrays for all partner atoms I own
   // also setup input buf to rendezvous comm
   // input datums = partner atom where I do not own partner
-  // owning proc for each datum = partner_tag % comm->nprocs
+  // owning proc for each datum = partner_tag % nprocs
   // datum: atomID = partner_tag (off-proc)
   //        values in 3 shake arrays
 
@@ -1389,7 +1317,7 @@ void FixShake::shake_info(int *npartner, tagint **partner_tag,
         shake_type[m][2] = shake_type[i][2];
 
       } else {
-        proclist[nsend] = partner_tag[i][j] % comm->nprocs;
+        proclist[nsend] = partner_tag[i][j] % nprocs;
         inbuf[nsend].atomID = partner_tag[i][j];
         inbuf[nsend].shake_flag = shake_flag[i];
         inbuf[nsend].shake_atom[0] = shake_atom[i][0];
@@ -2524,65 +2452,12 @@ void FixShake::shake3angle(int m)
 }
 
 /* ----------------------------------------------------------------------
-   apply bond force for minimization
-------------------------------------------------------------------------- */
-
-void FixShake::bond_force(tagint id1, tagint id2, double length)
-{
-  int i1 = atom->map(id1);
-  int i2 = atom->map(id2);
-
-  if ((i1 < 0) || (i2 < 0)) return;
-
-  // distance vec between atoms, with PBC
-
-  double delx = x[i1][0] - x[i2][0];
-  double dely = x[i1][1] - x[i2][1];
-  double delz = x[i1][2] - x[i2][2];
-  domain->minimum_image(delx, dely, delz);
-
-  // compute and apply force
-
-  const double r = sqrt(delx * delx + dely * dely + delz * delz);
-  const double dr = r - length;
-  const double rk = kbond * dr;
-  const double fbond = (r > 0.0) ? -2.0 * rk / r : 0.0;
-  const double eb = rk*dr;
-  int list[2];
-  int nlist = 0;
-
-  if (i1 < nlocal) {
-    f[i1][0] += delx * fbond;
-    f[i1][1] += dely * fbond;
-    f[i1][2] += delz * fbond;
-    list[nlist++] = i1;
-    ebond += 0.5*eb;
-  }
-  if (i2 < nlocal) {
-    f[i2][0] -= delx * fbond;
-    f[i2][1] -= dely * fbond;
-    f[i2][2] -= delz * fbond;
-    list[nlist++] = i2;
-    ebond += 0.5*eb;
-  }
-  if (evflag) {
-    double v[6];
-    v[0] = 0.5 * delx * delx * fbond;
-    v[1] = 0.5 * dely * dely * fbond;
-    v[2] = 0.5 * delz * delz * fbond;
-    v[3] = 0.5 * delx * dely * fbond;
-    v[4] = 0.5 * delx * delz * fbond;
-    v[5] = 0.5 * dely * delz * fbond;
-    ev_tally(nlist, list, 2.0, eb, v);
-  }
-}
-
-/* ----------------------------------------------------------------------
    print-out bond & angle statistics
 ------------------------------------------------------------------------- */
 
 void FixShake::stats()
 {
+  int i,j,m,n,iatom,jatom,katom;
   double delx,dely,delz;
   double r,r1,r2,r3,angle;
 
@@ -2591,12 +2466,13 @@ void FixShake::stats()
   int nb = atom->nbondtypes + 1;
   int na = atom->nangletypes + 1;
 
-  for (int i = 0; i < nb; i++) {
+  for (i = 0; i < nb; i++) {
     b_count[i] = 0;
     b_ave[i] = b_max[i] = 0.0;
     b_min[i] = BIG;
+    b_atom[i] = -1;
   }
-  for (int i = 0; i < na; i++) {
+  for (i = 0; i < na; i++) {
     a_count[i] = 0;
     a_ave[i] = a_max[i] = 0.0;
     a_min[i] = BIG;
@@ -2608,26 +2484,25 @@ void FixShake::stats()
   double **x = atom->x;
   int nlocal = atom->nlocal;
 
-  for (int ii = 0; ii < nlist; ++ii) {
-    int i = list[ii];
-    int n = shake_flag[i];
-    if (n == 0) continue;
+  for (i = 0; i < nlocal; i++) {
+    if (shake_flag[i] == 0) continue;
 
     // bond stats
 
+    n = shake_flag[i];
     if (n == 1) n = 3;
-    int iatom = atom->map(shake_atom[i][0]);
-    for (int j = 1; j < n; j++) {
-      int jatom = atom->map(shake_atom[i][j]);
-      if (jatom >= nlocal) continue;
+    iatom = atom->map(shake_atom[i][0]);
+    for (j = 1; j < n; j++) {
+      jatom = atom->map(shake_atom[i][j]);
       delx = x[iatom][0] - x[jatom][0];
       dely = x[iatom][1] - x[jatom][1];
       delz = x[iatom][2] - x[jatom][2];
       domain->minimum_image(delx,dely,delz);
-
       r = sqrt(delx*delx + dely*dely + delz*delz);
-      int m = shake_type[i][j-1];
+
+      m = shake_type[i][j-1];
       b_count[m]++;
+      b_atom[m] = n;
       b_ave[m] += r;
       b_max[m] = MAX(b_max[m],r);
       b_min[m] = MIN(b_min[m],r);
@@ -2636,13 +2511,9 @@ void FixShake::stats()
     // angle stats
 
     if (shake_flag[i] == 1) {
-      int iatom = atom->map(shake_atom[i][0]);
-      int jatom = atom->map(shake_atom[i][1]);
-      int katom = atom->map(shake_atom[i][2]);
-      int n = 0;
-      if (iatom < nlocal) ++n;
-      if (jatom < nlocal) ++n;
-      if (katom < nlocal) ++n;
+      iatom = atom->map(shake_atom[i][0]);
+      jatom = atom->map(shake_atom[i][1]);
+      katom = atom->map(shake_atom[i][2]);
 
       delx = x[iatom][0] - x[jatom][0];
       dely = x[iatom][1] - x[jatom][1];
@@ -2664,9 +2535,9 @@ void FixShake::stats()
 
       angle = acos((r1*r1 + r2*r2 - r3*r3) / (2.0*r1*r2));
       angle *= 180.0/MY_PI;
-      int m = shake_type[i][2];
-      a_count[m] += n;
-      a_ave[m] += n*angle;
+      m = shake_type[i][2];
+      a_count[m]++;
+      a_ave[m] += angle;
       a_max[m] = MAX(a_max[m],angle);
       a_min[m] = MIN(a_min[m],angle);
     }
@@ -2675,6 +2546,7 @@ void FixShake::stats()
   // sum across all procs
 
   MPI_Allreduce(b_count,b_count_all,nb,MPI_INT,MPI_SUM,world);
+  MPI_Allreduce(b_atom,b_atom_all,nb,MPI_INT,MPI_MAX,world);
   MPI_Allreduce(b_ave,b_ave_all,nb,MPI_DOUBLE,MPI_SUM,world);
   MPI_Allreduce(b_max,b_max_all,nb,MPI_DOUBLE,MPI_MAX,world);
   MPI_Allreduce(b_min,b_min_all,nb,MPI_DOUBLE,MPI_MIN,world);
@@ -2686,17 +2558,16 @@ void FixShake::stats()
 
   // print stats only for non-zero counts
 
-  if (comm->me == 0) {
-    const int width = log10((double)(MAX(MAX(1,nb),na)))+2;
-    auto mesg = fmt::format("{} stats (type/ave/delta/count) on step {}\n",
-                            utils::uppercase(style), update->ntimestep);
-    for (int i = 1; i < nb; i++) {
+  if (me == 0) {
+    const int width = log10((MAX(MAX(1,nb),na)))+2;
+    auto mesg = fmt::format("SHAKE stats (type/ave/delta/count) on step {}\n", update->ntimestep);
+    for (i = 1; i < nb; i++) {
       const auto bcnt = b_count_all[i];
       if (bcnt)
         mesg += fmt::format("Bond:  {:>{}d}   {:<9.6} {:<11.6} {:>8d}\n",i,width,
-                            b_ave_all[i]/bcnt,b_max_all[i]-b_min_all[i],bcnt);
+                            b_ave_all[i]/bcnt,b_max_all[i]-b_min_all[i],bcnt/b_atom_all[i]);
     }
-    for (int i = 1; i < na; i++) {
+    for (i = 1; i < na; i++) {
       const auto acnt = a_count_all[i];
       if (acnt)
         mesg += fmt::format("Angle: {:>{}d}   {:<9.6} {:<11.6} {:>8d}\n",i,width,
@@ -3135,26 +3006,6 @@ void *FixShake::extract(const char *str, int &dim)
 }
 
 /* ----------------------------------------------------------------------
-   energy due to restraint forces
-------------------------------------------------------------------------- */
-
-double FixShake::compute_scalar()
-{
-  double all;
-  MPI_Allreduce(&ebond, &all, 1, MPI_DOUBLE, MPI_SUM, world);
-  return all;
-}
-
-/*  ----------------------------------------------------------------------
-   print shake stats at the end of a minimization
-------------------------------------------------------------------------- */
-void FixShake::post_run()
-{
-  if ((update->whichflag == 2) && (output_every > 0)) stats();
-}
-
-
-/* ----------------------------------------------------------------------
    add coordinate constraining forces
    this method is called at the end of a timestep
 ------------------------------------------------------------------------- */
@@ -3175,9 +3026,9 @@ void FixShake::shake_end_of_step(int vflag) {
     // apply correction to all rRESPA levels
 
     for (int ilevel = 0; ilevel < nlevels_respa; ilevel++) {
-      (dynamic_cast<Respa *>(update->integrate))->copy_flevel_f(ilevel);
+      (dynamic_cast<Respa *>( update->integrate))->copy_flevel_f(ilevel);
       FixShake::post_force_respa(vflag,ilevel,loop_respa[ilevel]-1);
-      (dynamic_cast<Respa *>(update->integrate))->copy_f_flevel(ilevel);
+      (dynamic_cast<Respa *>( update->integrate))->copy_f_flevel(ilevel);
     }
     if (!rattle) dtf_inner = step_respa[0] * force->ftm2v;
   }
@@ -3258,7 +3109,7 @@ void FixShake::correct_coordinates(int vflag) {
 
   double **xtmp = xshake;
   xshake = x;
-  if (comm->nprocs > 1) {
+  if (nprocs > 1) {
     comm->forward_comm(this);
   }
   xshake = xtmp;

@@ -2,7 +2,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -1133,7 +1133,7 @@ void PairLubricateUPoly::init_style()
   if (!atom->sphere_flag)
     error->all(FLERR,"Pair lubricate/poly requires atom style sphere");
 
-  // ensure all particles are finite-size
+  // insure all particles are finite-size
   // for pair hybrid, should limit test to types using the pair style
 
   double *radius = atom->radius;
@@ -1165,7 +1165,7 @@ void PairLubricateUPoly::init_style()
                    "Cannot use multiple fix wall commands with "
                    "pair lubricateU");
       flagwall = 1; // Walls exist
-      wallfix = dynamic_cast<FixWall *>(modify->fix[i]);
+      wallfix = dynamic_cast<FixWall *>( modify->fix[i]);
       if (wallfix->xflag) flagwall = 2; // Moving walls exist
     }
   }

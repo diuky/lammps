@@ -2,7 +2,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -356,7 +356,7 @@ void PairLebedevaZ::read_file(char *filename)
       params[nparams].z06 = pow(params[nparams].z0,6);
 
       nparams++;
-      if (nparams >= pow((double)atom->ntypes,3)) break;
+      if (nparams >= pow(atom->ntypes,3)) break;
     }
   }
 
@@ -376,13 +376,11 @@ void PairLebedevaZ::read_file(char *filename)
       int n = -1;
       for (int m = 0; m < nparams; m++) {
         if (i == params[m].ielement && j == params[m].jelement) {
-          if (n >= 0) error->all(FLERR,"Potential file has a duplicate entry for: {} {}",
-                                 elements[i], elements[j]);
+          if (n >= 0) error->all(FLERR,"Potential file has duplicate entry");
           n = m;
         }
       }
-      if (n < 0) error->all(FLERR,"Potential file is missing an entry for: {} {}",
-                            elements[i], elements[j]);
+      if (n < 0) error->all(FLERR,"Potential file is missing an entry");
       elem2param[i][j] = n;
     }
   }

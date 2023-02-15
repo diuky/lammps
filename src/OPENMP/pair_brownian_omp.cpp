@@ -2,7 +2,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    This software is distributed under the GNU General Public License.
 
@@ -197,6 +197,7 @@ void PairBrownianOMP::eval(int iifrom, int iito, ThrData * const thr)
   double prethermostat;
   double xl[3],a_sq,a_sh,a_pu,Fbmag;
   double p1[3],p2[3],p3[3];
+  int overlaps = 0;
 
   // scale factor for Brownian moments
 
@@ -250,6 +251,10 @@ void PairBrownianOMP::eval(int iifrom, int iito, ThrData * const thr)
         // scalar resistances a_sq and a_sh
 
         h_sep = r - 2.0*radi;
+
+        // check for overlaps
+
+        if (h_sep < 0.0) overlaps++;
 
         // if less than minimum gap, use minimum gap instead
 

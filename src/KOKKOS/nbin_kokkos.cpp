@@ -2,7 +2,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -91,7 +91,7 @@ void NBinKokkos<DeviceType>::bin_atoms()
 
   while (h_resize() > 0) {
     h_resize() = 0;
-    Kokkos::deep_copy(d_resize, h_resize);
+    deep_copy(d_resize, h_resize);
 
     MemsetZeroFunctor<DeviceType> f_zero;
     f_zero.ptr = (void*) k_bincount.view<DeviceType>().data();
@@ -107,7 +107,7 @@ void NBinKokkos<DeviceType>::bin_atoms()
 
     Kokkos::parallel_for(atom->nlocal+atom->nghost, f);
 
-    Kokkos::deep_copy(h_resize, d_resize);
+    deep_copy(h_resize, d_resize);
     if (h_resize()) {
 
       atoms_per_bin += 16;

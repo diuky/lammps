@@ -2,7 +2,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -63,14 +63,12 @@ using namespace LAMMPS_NS;
 using namespace ReaxFF;
 
 static const char cite_pair_reaxff_omp[] =
-  "pair reaxff/omp and fix qeq/reaxff/omp command: doi:10.1177/1094342017746221\n\n"
+  "pair reaxff/omp and fix qeq/reaxff/omp command:\n\n"
   "@Article{Aktulga17,\n"
-  " author =  {H. M. Aktulga and C. Knight and P. Coffman and\n"
-  "    K. A. O'Hearn and T. R. Shan and W. Jiang},\n"
-  " title =   {Optimizing the Performance of Reactive Molecular Dynamics\n"
-  "    Simulations for Multi-Core Architectures},\n"
+  " author =  {H. M. Aktulga, C. Knight, P. Coffman, K. A. OHearn, T. R. Shan, W. Jiang},\n"
+  " title =   {Optimizing the performance of reactive molecular dynamics simulations for multi-core architectures},\n"
   " journal = {International Journal of High Performance Computing Applications},\n"
-  " year =    2018\n"
+  " year =    to appear\n"
   "}\n\n";
 
 /* ---------------------------------------------------------------------- */
@@ -93,7 +91,7 @@ PairReaxFFOMP::~PairReaxFFOMP()
   if (setup_flag) {
     reax_list * bonds = api->lists+BONDS;
     for (int i=0; i<bonds->num_intrs; ++i)
-      sfree(bonds->select.bond_list[i].bo_data.CdboReduction);
+      sfree(error, bonds->select.bond_list[i].bo_data.CdboReduction, "CdboReduction");
   }
   memory->destroy(num_nbrs_offset);
 }
@@ -136,7 +134,7 @@ void PairReaxFFOMP::init_style()
                    "increased neighbor list skin.");
 
   if (fix_reaxff == nullptr)
-    fix_reaxff = dynamic_cast<FixReaxFF *>(modify->add_fix(fmt::format("{} all REAXFF",fix_id)));
+    fix_reaxff = dynamic_cast<FixReaxFF *>( modify->add_fix(fmt::format("{} all REAXFF",fix_id)));
 
   api->control->nthreads = comm->nthreads;
 }

@@ -2,7 +2,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -68,8 +68,6 @@ FixSRP::FixSRP(LAMMPS *lmp, int narg, char **arg) : Fix(lmp, narg, arg)
   btype = -1;
   bptype = -1;
 
-  pair_name = "srp";
-
   // zero
   for (int i = 0; i < atom->nmax; i++)
     for (int m = 0; m < 2; m++)
@@ -103,11 +101,15 @@ int FixSRP::setmask()
 
 void FixSRP::init()
 {
-  if (!force->pair_match("^hybrid",0))
-    error->all(FLERR,"Cannot use pair {} without pair_style hybrid", pair_name);
+  if (force->pair_match("hybrid",1) == nullptr && force->pair_match("hybrid/overlay",1) == nullptr)
+    error->all(FLERR,"Cannot use pair srp without pair_style hybrid");
 
-  if (modify->get_fix_by_style("^rigid").size() > 0)
-    error->all(FLERR,"Pair {} is not compatible with rigid fixes.", pair_name);
+  int has_rigid = 0;
+  for (int i = 0; i < modify->nfix; i++)
+    if (utils::strmatch(modify->fix[i]->style,"^rigid")) ++has_rigid;
+
+  if (has_rigid > 0)
+    error->all(FLERR,"Pair srp is not compatible with rigid fixes.");
 
   if ((bptype < 1) || (bptype > atom->ntypes))
     error->all(FLERR,"Illegal bond particle type");
@@ -116,10 +118,11 @@ void FixSRP::init()
   // because this fix's pre_exchange() creates per-atom data structure
   // that data must be current for atom migration to carry it along
 
-  for (auto &ifix : modify->get_fix_list()) {
-    if (ifix == this) break;
-    if (ifix->pre_exchange_migrate)
-      error->all(FLERR,"Fix {} comes after a fix which migrates atoms in pre_exchange", style);
+  for (int i = 0; i < modify->nfix; i++) {
+    if (modify->fix[i] == this) break;
+    if (modify->fix[i]->pre_exchange_migrate)
+      error->all(FLERR,"Fix SRP comes after a fix which "
+                 "migrates atoms in pre_exchange");
   }
 
   // setup neigh exclusions for diff atom types
@@ -271,8 +274,8 @@ void FixSRP::setup_pre_force(int /*zz*/)
 
   // stop if cutghost is insufficient
   if (cutneighmax_srp > cutghostmin)
-    error->all(FLERR,"Communication cutoff too small for fix {}. "
-               "Need {:.8}, current {:.8}", style, cutneighmax_srp, cutghostmin);
+    error->all(FLERR,"Communication cutoff too small for fix srp. "
+            "Need {:.8}, current {:.8}", cutneighmax_srp, cutghostmin);
 
   // assign tags for new atoms, update map
   atom->tag_extend();
@@ -342,11 +345,11 @@ void FixSRP::pre_exchange()
     if (atom->type[ii] != bptype) continue;
 
     i = atom->map(static_cast<tagint>(array[ii][0]));
-    if (i < 0) error->all(FLERR,"Fix {} failed to map atom", style);
+    if (i < 0) error->all(FLERR,"Fix SRP failed to map atom");
     i = domain->closest_image(ii,i);
 
     j = atom->map(static_cast<tagint>(array[ii][1]));
-    if (j < 0) error->all(FLERR,"Fix {} failed to map atom", style);
+    if (j < 0) error->all(FLERR,"Fix SRP failed to map atom");
     j = domain->closest_image(ii,j);
 
     // position of bond particle ii

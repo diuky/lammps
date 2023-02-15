@@ -2,7 +2,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -350,7 +350,7 @@ void PairTableRX::coeff(int narg, char **arg)
   else tb->cut = tb->rfile[tb->ninput-1];
 
   // error check on table parameters
-  // ensure cutoff is within table
+  // insure cutoff is within table
   // for BITMAP tables, file values can be in non-ascending order
 
   if (tb->ninput <= 1) error->one(FLERR,"Invalid pair table length");

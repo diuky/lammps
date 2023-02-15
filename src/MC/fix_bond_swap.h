@@ -1,7 +1,7 @@
 /* -*- c++ -*- ----------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -46,9 +46,6 @@ class FixBondSwap : public Fix {
   int *type;
   double **x;
 
-  int maxpermute;
-  int *permute;
-
   class NeighList *list;
   class Compute *temperature;
   class RanMars *random;
@@ -57,8 +54,6 @@ class FixBondSwap : public Fix {
   double pair_eng(int, int);
   double bond_eng(int, int, int);
   double angle_eng(int, int, int, int);
-
-  void neighbor_permutation(int);
 };
 
 }    // namespace LAMMPS_NS

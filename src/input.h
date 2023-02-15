@@ -1,7 +1,7 @@
 /* -*- c++ -*- ----------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -34,11 +34,12 @@ class Input : protected Pointers {
 
   Input(class LAMMPS *, int, char **);
   ~Input() override;
-  void file();                                             // process all input
-  void file(const char *);                                 // process an input script
-  char *one(const std::string &);                          // process a single command
-  void substitute(char *&, char *&, int &, int &, int);    // substitute for variables in a string
-  void write_echo(const std::string &);                    // send text to active echo file pointers
+  void file();                       // process all input
+  void file(const char *);           // process an input script
+  char *one(const std::string &);    // process a single command
+  void substitute(char *&, char *&, int &, int &, int);
+  // substitute for variables in a string
+  void write_echo(const std::string &);    // send text to active echo file pointers
 
  protected:
   char *command;      // ptr to current command
@@ -70,8 +71,6 @@ class Input : protected Pointers {
   void reallocate(char *&, int &, int);    // reallocate a char string
   int execute_command();                   // execute a single command
 
-  int meta(const std::string &);    // process meta-commands
-
   void clear();    // input script commands
   void echo();
   void ifthenelse();
@@ -96,6 +95,7 @@ class Input : protected Pointers {
   void bond_style();
   void bond_write();
   void boundary();
+  void box();
   void comm_modify();
   void comm_style();
   void compute();
@@ -113,7 +113,6 @@ class Input : protected Pointers {
   void improper_style();
   void kspace_modify();
   void kspace_style();
-  void labelmap();
   void lattice();
   void mass();
   void min_modify();
@@ -144,5 +143,7 @@ class Input : protected Pointers {
   void unfix();
   void units();
 };
+
 }    // namespace LAMMPS_NS
+
 #endif

@@ -2,7 +2,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -63,9 +63,7 @@
 #endif
 
 #if defined(__linux__)
-#include <features.h>
 #include <malloc.h>
-#include <sys/types.h>
 #endif
 
 namespace LAMMPS_NS {
@@ -404,7 +402,7 @@ void Info::command(int narg, char **arg)
   if (flags & SYSTEM) {
     fputs("\nSystem information:\n",out);
     fmt::print(out,"Units         = {}\n", update->unit_style);
-    fmt::print(out,"Atom style    = {}\n", atom->get_style());
+    fmt::print(out,"Atom style    = {}\n", atom->atom_style);
     fmt::print(out,"Atom map      = {}\n", mapstyles[atom->map_style]);
     if (atom->molecular != Atom::ATOMIC) {
       const char *msg;
@@ -889,17 +887,42 @@ bool Info::is_defined(const char *category, const char *name)
   if ((category == nullptr) || (name == nullptr)) return false;
 
   if (strcmp(category,"compute") == 0) {
-    if (modify->get_compute_by_id(name)) return true;
+    int ncompute = modify->ncompute;
+    Compute **compute = modify->compute;
+    for (int i=0; i < ncompute; ++i) {
+      if (strcmp(compute[i]->id,name) == 0)
+        return true;
+    }
   } else if (strcmp(category,"dump") == 0) {
-    if (output->get_dump_by_id(name)) return true;
+    int ndump = output->ndump;
+    Dump **dump = output->dump;
+    for (int i=0; i < ndump; ++i) {
+      if (strcmp(dump[i]->id,name) == 0)
+        return true;
+    }
   } else if (strcmp(category,"fix") == 0) {
-    if (modify->get_fix_by_id(name)) return true;
+    for (const auto &fix : modify->get_fix_list()) {
+      if (strcmp(fix->id,name) == 0)
+        return true;
+    }
   } else if (strcmp(category,"group") == 0) {
-    if (group->find(name) >= 0) return true;
+    int ngroup = group->ngroup;
+    char **names = group->names;
+    for (int i=0; i < ngroup; ++i) {
+      if (strcmp(names[i],name) == 0)
+        return true;
+    }
   } else if (strcmp(category,"region") == 0) {
-    if (domain->get_region_by_id(name)) return true;
+    for (auto &reg : domain->get_region_list())
+      if (strcmp(reg->id,name) == 0) return true;
   } else if (strcmp(category,"variable") == 0) {
-    if (input->variable->find(name) >= 0) return true;
+    int nvar = input->variable->nvar;
+    char **names = input->variable->names;
+
+    for (int i=0; i < nvar; ++i) {
+      if (strcmp(names[i],name) == 0)
+        return true;
+    }
   } else error->all(FLERR,"Unknown category for info is_defined(): {}", category);
 
   return false;
@@ -1187,10 +1210,11 @@ bool Info::has_accelerator_feature(const std::string &package,
     }
     if (category == "api") {
 #if defined(_OPENMP)
-      return setting == "openmp";
+      if (setting == "openmp") return true;
 #else
-      return setting == "serial";
+      if (setting == "serial") return true;
 #endif
+      return false;
     }
   }
 #endif
@@ -1199,7 +1223,7 @@ bool Info::has_accelerator_feature(const std::string &package,
     if (category == "precision") {
       if (setting == "double") return true;
       else if (setting == "mixed") return true;
-      else if (setting == "single") return true;
+      else if (setting == "single")return true;
       else return false;
     }
     if (category == "api") {
@@ -1272,52 +1296,45 @@ std::string Info::get_accelerator_info(const std::string &package)
 
 void Info::get_memory_info(double *meminfo)
 {
-  double bytes = 0;
-  bytes += atom->memory_usage();
-  bytes += neighbor->memory_usage();
-  bytes += comm->memory_usage();
-  bytes += update->memory_usage();
-  bytes += force->memory_usage();
-  bytes += modify->memory_usage();
-  for (int i = 0; i < output->ndump; i++)
-    bytes += output->dump[i]->memory_usage();
-  meminfo[0] = bytes/1024.0/1024.0;
-  meminfo[1] = 0;
-  meminfo[2] = 0;
+    double bytes = 0;
+    bytes += atom->memory_usage();
+    bytes += neighbor->memory_usage();
+    bytes += comm->memory_usage();
+    bytes += update->memory_usage();
+    bytes += force->memory_usage();
+    bytes += modify->memory_usage();
+    for (int i = 0; i < output->ndump; i++)
+      bytes += output->dump[i]->memory_usage();
+    meminfo[0] = bytes/1024.0/1024.0;
+    meminfo[1] = 0;
+    meminfo[2] = 0;
 
 #if defined(_WIN32)
-  HANDLE phandle = GetCurrentProcess();
-  PROCESS_MEMORY_COUNTERS_EX pmc;
-  GetProcessMemoryInfo(phandle,(PROCESS_MEMORY_COUNTERS *)&pmc,sizeof(pmc));
-  meminfo[1] = (double)pmc.PrivateUsage/1048576.0;
-  meminfo[2] = (double)pmc.PeakWorkingSetSize/1048576.0;
+    HANDLE phandle = GetCurrentProcess();
+    PROCESS_MEMORY_COUNTERS_EX pmc;
+    GetProcessMemoryInfo(phandle,(PROCESS_MEMORY_COUNTERS *)&pmc,sizeof(pmc));
+    meminfo[1] = (double)pmc.PrivateUsage/1048576.0;
+    meminfo[2] = (double)pmc.PeakWorkingSetSize/1048576.0;
 #else
 #if defined(__linux__)
-// __GLIBC_MINOR__ is only defined on real glibc (i.e. not on musl)
-#if defined(__GLIBC_MINOR__)
-// newer glibc versions have mallinfo2
 #if defined(__GLIBC__) && __GLIBC_PREREQ(2, 33)
-  struct mallinfo2 mi;
-  mi = mallinfo2();
+    struct mallinfo2 mi;
+    mi = mallinfo2();
 #else
-  struct mallinfo mi;
-  mi = mallinfo();
+    struct mallinfo mi;
+    mi = mallinfo();
 #endif
-  meminfo[1] = (double)mi.uordblks/1048576.0+(double)mi.hblkhd/1048576.0;
+    meminfo[1] = (double)mi.uordblks/1048576.0+(double)mi.hblkhd/1048576.0;
 #endif
-// not glibc => may not have mallinfo/mallinfo2
-#else
-  meminfo[1] = 0.0;
-#endif
-  struct rusage ru;
-  if (getrusage(RUSAGE_SELF, &ru) == 0)
-    meminfo[2] = (double)ru.ru_maxrss/1024.0;
+    struct rusage ru;
+    if (getrusage(RUSAGE_SELF, &ru) == 0)
+      meminfo[2] = (double)ru.ru_maxrss/1024.0;
 #endif
 }
 
 /* ---------------------------------------------------------------------- */
 
 char **Info::get_variable_names(int &num) {
-  num = input->variable->nvar;
-  return input->variable->names;
+    num = input->variable->nvar;
+    return input->variable->names;
 }

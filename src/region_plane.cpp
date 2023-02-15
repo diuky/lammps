@@ -2,7 +2,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -37,7 +37,7 @@ RegPlane::RegPlane(LAMMPS *lmp, int narg, char **arg) :
   // enforce unit normal
 
   double rsq = normal[0]*normal[0] + normal[1]*normal[1] + normal[2]*normal[2];
-  if (rsq == 0.0) error->all(FLERR,"Illegal region plane normal vector: {} {} {}", normal[0], normal[1], normal[2]);
+  if (rsq == 0.0) error->all(FLERR,"Illegal region plane command");
   normal[0] /= sqrt(rsq);
   normal[1] /= sqrt(rsq);
   normal[2] /= sqrt(rsq);

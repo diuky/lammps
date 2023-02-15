@@ -2,7 +2,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -46,7 +46,6 @@
 #include "modify.h"
 #include "neighbor.h"
 #include "output.h"
-#include "suffix.h"
 #include "timer.h"
 #include "universe.h"
 #include "update.h"
@@ -130,10 +129,10 @@ LAMMPS::LAMMPS(int narg, char **arg, MPI_Comm communicator) :
 
   version = (const char *) LAMMPS_VERSION;
   num_ver = utils::date2num(version);
-  restart_ver = -1;
 
-  external_comm = 0;
-  mdicomm = nullptr;
+  clientserver = 0;
+  cslib = nullptr;
+  cscomm = 0;
 
   skiprunflag = 0;
 
@@ -157,16 +156,19 @@ LAMMPS::LAMMPS(int narg, char **arg, MPI_Comm communicator) :
 #endif
 
   // check if -mpicolor is first arg
-  // if so, then 2 or more apps were launched with one mpirun command
+  // if so, then 2 apps were launched with one mpirun command
   //   this means passed communicator (e.g. MPI_COMM_WORLD) is bigger than LAMMPS
+  //     e.g. for client/server coupling with another code
+  //     in the future LAMMPS might leverage this in other ways
   //   universe communicator needs to shrink to be just LAMMPS
   // syntax: -mpicolor color
-  //   color = integer for this app, different than any other app(s)
+  //   color = integer for this app, different than other app(s)
   // do the following:
   //   perform an MPI_Comm_split() to create a new LAMMPS-only subcomm
-  //   NOTE: this assumes other app(s) make same call, else will hang!
+  //   NOTE: this assumes other app(s) does same thing, else will hang!
   //   re-create universe with subcomm
-  //   store comm that all apps belong to in external_comm
+  //   store full multi-app comm in cscomm
+  //   cscomm is used by CSLIB package to exchange messages w/ other app
 
   int iarg = 1;
   if (narg-iarg >= 2 && (strcmp(arg[iarg],"-mpicolor") == 0 ||
@@ -177,7 +179,7 @@ LAMMPS::LAMMPS(int narg, char **arg, MPI_Comm communicator) :
     int color = atoi(arg[iarg+1]);
     MPI_Comm subcomm;
     MPI_Comm_split(communicator,color,me,&subcomm);
-    external_comm = communicator;
+    cscomm = communicator;
     communicator = subcomm;
     delete universe;
     universe = new Universe(this,communicator);
@@ -201,9 +203,8 @@ LAMMPS::LAMMPS(int narg, char **arg, MPI_Comm communicator) :
   int helpflag = 0;
   int nonbufflag = 0;
 
-  suffix = suffix2 = nullptr;
+  suffix = suffix2 = suffixp = nullptr;
   suffix_enable = 0;
-  pair_only_flag = 0;
   if (arg) exename = arg[0];
   else exename = nullptr;
   packargs = nullptr;
@@ -291,7 +292,7 @@ LAMMPS::LAMMPS(int narg, char **arg, MPI_Comm communicator) :
       logflag = iarg + 1;
       iarg += 2;
 
-    } else if (strcmp(arg[iarg],"-mpicolor") == 0 ||
+    } else if (strcmp(arg[iarg],"-mpi") == 0 ||
                strcmp(arg[iarg],"-m") == 0) {
       if (iarg+2 > narg)
         error->universe_all(FLERR,"Invalid command-line argument");
@@ -442,9 +443,7 @@ LAMMPS::LAMMPS(int narg, char **arg, MPI_Comm communicator) :
       iarg += 3;
       while (iarg < narg && arg[iarg][0] != '-') iarg++;
 
-    } else {
-      error->universe_all(FLERR, fmt::format("Invalid command-line argument: {}", arg[iarg]) );
-    }
+    } else error->universe_all(FLERR,"Invalid command-line argument");
   }
 
   // if no partition command-line switch, universe is one world with all procs
@@ -529,7 +528,7 @@ LAMMPS::LAMMPS(int narg, char **arg, MPI_Comm communicator) :
      // warn against using I/O redirection in parallel runs
       if ((inflag == 0) && (universe->nprocs > 1))
         error->warning(FLERR, "Using I/O redirection is unreliable with parallel runs. "
-                       "Better to use the -in switch to read input files.");
+                       "Better use -in switch to read input file.");
       utils::flush_buffers(this);
     }
 
@@ -781,14 +780,15 @@ LAMMPS::~LAMMPS()
   delete kokkos;
   delete[] suffix;
   delete[] suffix2;
+  delete[] suffixp;
 
-  // free the MPI comm created by -mpicolor cmdline arg processed in constructor
+  // free the MPI comm created by -mpi command-line arg processed in constructor
   // it was passed to universe as if original universe world
   // may have been split later by partitions, universe will free the splits
   // free a copy of uorig here, so check in universe destructor will still work
 
   MPI_Comm copy = universe->uorig;
-  if (external_comm) MPI_Comm_free(&copy);
+  if (cscomm) MPI_Comm_free(&copy);
 
   delete input;
   delete universe;
@@ -864,38 +864,16 @@ void LAMMPS::post_create()
 {
   if (skiprunflag) input->one("timer timeout 0 every 1");
 
-  // Don't unnecessarily reissue a package command via suffix
-  int package_issued = Suffix::NONE;
-
   // default package command triggered by "-k on"
 
   if (kokkos && kokkos->kokkos_exists) input->one("package kokkos");
 
-  // invoke any command-line package commands
-
-  if (num_package) {
-    std::string str;
-    for (int i = 0; i < num_package; i++) {
-      str = "package";
-      char *pkg_name = *(packargs[i]);
-      if (pkg_name != nullptr) {
-        if (strcmp("gpu", pkg_name) == 0) package_issued |= Suffix::GPU;
-        if (strcmp("omp", pkg_name) == 0) package_issued |= Suffix::OMP;
-        if (strcmp("intel", pkg_name) == 0) package_issued |= Suffix::INTEL;
-      }
-      for (char **ptr = packargs[i]; *ptr != nullptr; ++ptr) {
-        str += " ";
-        str += *ptr;
-      }
-      input->one(str);
-    }
-  }
-
+  // suffix will always be set if suffix_enable = 1
   // check that KOKKOS package classes were instantiated
   // check that GPU, INTEL, OPENMP fixes were compiled with LAMMPS
-  // do not re-issue package command if already issued
 
   if (suffix_enable) {
+    if (suffixp) suffix = suffixp;
 
     if (strcmp(suffix,"gpu") == 0 && !modify->check_package("GPU"))
       error->all(FLERR,"Using suffix gpu without GPU package installed");
@@ -907,21 +885,32 @@ void LAMMPS::post_create()
     if (strcmp(suffix,"omp") == 0 && !modify->check_package("OMP"))
       error->all(FLERR,"Using suffix omp without OPENMP package installed");
 
-    if (strcmp(suffix,"gpu") == 0 && !(package_issued & Suffix::GPU))
-      input->one("package gpu 0");
-    if (strcmp(suffix,"intel") == 0 && !(package_issued & Suffix::INTEL))
-      input->one("package intel 1");
-    if (strcmp(suffix,"omp") == 0 && !(package_issued & Suffix::OMP))
-      input->one("package omp 0");
+    if (strcmp(suffix,"gpu") == 0) input->one("package gpu 0");
+    if (strcmp(suffix,"intel") == 0) input->one("package intel 1");
+    if (strcmp(suffix,"omp") == 0) input->one("package omp 0");
 
     if (suffix2) {
-      if (strcmp(suffix2,"gpu") == 0 && !(package_issued & Suffix::GPU))
-        input->one("package gpu 0");
-      if (strcmp(suffix2,"intel") == 0 && !(package_issued & Suffix::INTEL))
-        input->one("package intel 1");
-      if (strcmp(suffix2,"omp") == 0 && !(package_issued & Suffix::OMP))
-        input->one("package omp 0");
+      if (strcmp(suffix2,"gpu") == 0) input->one("package gpu 0");
+      if (strcmp(suffix2,"intel") == 0) input->one("package intel 1");
+      if (strcmp(suffix2,"omp") == 0) input->one("package omp 0");
     }
+    if (suffixp) suffix = nullptr;
+  }
+
+  // invoke any command-line package commands
+
+  if (num_package) {
+    if (suffixp) suffix = suffixp;
+    std::string str;
+    for (int i = 0; i < num_package; i++) {
+      str = "package";
+      for (char **ptr = packargs[i]; *ptr != nullptr; ++ptr) {
+        str += " ";
+        str += *ptr;
+      }
+      input->one(str);
+    }
+    if (suffixp) suffix = nullptr;
   }
 }
 
@@ -996,8 +985,6 @@ void LAMMPS::destroy()
 
   delete python;
   python = nullptr;
-
-  restart_ver = -1;       // reset last restart version id
 }
 
 /* ----------------------------------------------------------------------
@@ -1156,26 +1143,6 @@ const char *LAMMPS::match_style(const char *style, const char *name)
   check_for_match(reader,style,name);
   check_for_match(region,style,name);
   return nullptr;
-}
-
-/** \brief  Return suffix for non-pair styles depending on pair_only_flag
- *
- * \return  suffix or null pointer
- */
-const char *LAMMPS::non_pair_suffix() const
-{
-  const char *mysuffix;
-  if (pair_only_flag) {
-#ifdef LMP_KOKKOS_GPU
-    if (utils::strmatch(suffix,"^kk")) mysuffix = "kk/host";
-    else mysuffix = nullptr;
-#else
-    mysuffix = nullptr;
-#endif
-  } else {
-    mysuffix = suffix;
-  }
-  return mysuffix;
 }
 
 /* ----------------------------------------------------------------------

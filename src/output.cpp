@@ -2,7 +2,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -299,7 +299,7 @@ void Output::setup(int memflag)
   if (memflag) memory_usage();
 
    // set next_thermo to multiple of every or variable eval if var defined
-   // ensure thermo output on last step of run
+   // insure thermo output on last step of run
    // thermo may invoke computes so wrap with clear/add
 
   modify->clearstep_compute();
@@ -431,7 +431,7 @@ void Output::write(bigint ntimestep)
     next_restart = MIN(next_restart_single,next_restart_double);
   }
 
-  // ensure next_thermo forces output on last step of run
+  // insure next_thermo forces output on last step of run
   // thermo may invoke computes so wrap with clear/add
 
   if (next_thermo == ntimestep) {
@@ -545,9 +545,11 @@ void Output::calculate_next_dump(int which, int idump, bigint ntimestep)
       // if delta is too small to reach next timestep, use multiple of delta
 
       if (nextdump == ntimestep) {
-        double tnext = update->atime + (ntimestep + 1 - update->atimestep) * update->dt;
-        int multiple = static_cast<int>((tnext - nexttime) / every_time_dump[idump]);
-        nexttime = nexttime + (multiple + 1) * every_time_dump[idump];
+        double tnext = update->atime +
+          (ntimestep+1 - update->atimestep) * update->dt;
+        int multiple = static_cast<int>
+          ((tnext - nexttime) / every_time_dump[idump]);
+        nexttime = nexttime + (multiple+1)*every_time_dump[idump];
         nextdump = ntimestep +
           static_cast<bigint> ((nexttime - tcurrent - EPSDT*update->dt) / update->dt) + 1;
       }
@@ -780,7 +782,6 @@ Dump *Output::add_dump(int narg, char **arg)
   next_dump[idump] = 0;
 
   ndump++;
-  dump_list = std::vector<Dump *>(dump, dump + ndump);
   return dump[idump];
 }
 
@@ -794,9 +795,12 @@ void Output::modify_dump(int narg, char **arg)
 
   // find which dump it is
 
-  auto idump = get_dump_by_id(arg[0]);
-  if (!idump) error->all(FLERR,"Could not find dump_modify ID: {}", arg[0]);
-  idump->modify_params(narg-1,&arg[1]);
+  int idump;
+  for (idump = 0; idump < ndump; idump++)
+    if (strcmp(arg[0],dump[idump]->id) == 0) break;
+  if (idump == ndump) error->all(FLERR,"Could not find dump_modify ID: {}", arg[0]);
+
+  dump[idump]->modify_params(narg-1,&arg[1]);
 }
 
 /* ----------------------------------------------------------------------
@@ -828,9 +832,21 @@ void Output::delete_dump(const std::string &id)
     ivar_dump[i-1] = ivar_dump[i];
   }
   ndump--;
-  dump[ndump] = nullptr;
-  var_dump[ndump] = nullptr;
-  dump_list = std::vector<Dump *>(dump, dump + ndump);
+}
+
+/* ----------------------------------------------------------------------
+   find a dump by ID
+   return index of dump or -1 if not found
+------------------------------------------------------------------------- */
+
+int Output::find_dump(const char *id)
+{
+  if (id == nullptr) return -1;
+  int idump;
+  for (idump = 0; idump < ndump; idump++)
+    if (strcmp(id,dump[idump]->id) == 0) break;
+  if (idump == ndump) return -1;
+  return idump;
 }
 
 /* ----------------------------------------------------------------------
@@ -838,21 +854,11 @@ void Output::delete_dump(const std::string &id)
    return pointer to dump
 ------------------------------------------------------------------------- */
 
-Dump *Output::get_dump_by_id(const std::string &id) const
+Dump *Output::get_dump_by_id(const std::string &id)
 {
   if (id.empty()) return nullptr;
   for (int idump = 0; idump < ndump; idump++) if (id == dump[idump]->id) return dump[idump];
   return nullptr;
-}
-
-/* ----------------------------------------------------------------------
-   return list of dumps as vector
-------------------------------------------------------------------------- */
-
-const std::vector<Dump *> &Output::get_dump_list()
-{
-  dump_list = std::vector<Dump *>(dump, dump + ndump);
-  return dump_list;
 }
 
 /* ----------------------------------------------------------------------

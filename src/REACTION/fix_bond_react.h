@@ -1,7 +1,7 @@
 /* -*- c++ -*- ----------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -25,9 +25,6 @@ FixStyle(bond/react,FixBondReact);
 #define LMP_FIX_BOND_REACT_H
 
 #include "fix.h"
-
-#include <map>
-#include <set>
 
 namespace LAMMPS_NS {
 
@@ -54,6 +51,7 @@ class FixBondReact : public Fix {
   double memory_usage() override;
 
  private:
+  int me, nprocs;
   int newton_bond;
   int nreacts;
   int *nevery;
@@ -66,11 +64,8 @@ class FixBondReact : public Fix {
   int stabilization_flag;
   int reset_mol_ids_flag;
   int custom_exclude_flag;
-  int **rate_limit;
-  int **store_rxn_count;
   int *stabilize_steps_flag;
   int *custom_charges_fragid;
-  int *rescale_charges_flag;
   int *create_atoms_flag;
   int *modify_create_fragid;
   double *overlapsq;
@@ -79,11 +74,9 @@ class FixBondReact : public Fix {
   int *nconstraints;
   char **constraintstr;
   int nrxnfunction;
-  std::vector<std::string> rxnfunclist;     // lists current special rxn function
-  std::vector<int> peratomflag; // 1 if special rxn function uses per-atom variable (vs. per-bond)
-  int atoms2bondflag;           // 1 if atoms2bond map has been populated on this timestep
+  std::vector<std::string> rxnfunclist;
   int narrhenius;
-  int **var_flag, **var_id;     // for keyword values with variable inputs
+  int **var_flag, **var_id;    // for keyword values with variable inputs
   int status;
   int *groupbits;
 
@@ -93,7 +86,6 @@ class FixBondReact : public Fix {
   int *reaction_count_total;
   int nmax;          // max num local atoms
   int max_natoms;    // max natoms in a molecule template
-  int max_rate_limit_steps;    // max rate limit interval
   tagint *partner, *finalpartner;
   double **distsq;
   int *nattempt;
@@ -110,7 +102,7 @@ class FixBondReact : public Fix {
   class RanMars **random;      // random number for 'prob' keyword
   class RanMars **rrhandom;    // random number for Arrhenius constraint
   class NeighList *list;
-  class ResetAtomsMol *reset_mol_ids;    // class for resetting mol IDs
+  class ResetMolIDs *reset_mol_ids;    // class for resetting mol IDs
 
   int *reacted_mol, *unreacted_mol;
   int *limit_duration;     // indicates how long to relax
@@ -168,8 +160,7 @@ class FixBondReact : public Fix {
                            // but whose first neighbors haven't
   int glove_counter;       // used to determine when to terminate Superimpose Algorithm
 
-  void read_variable_keyword(const char *, int, int);
-  void read_map_file(int);
+  void read(int);
   void EdgeIDs(char *, int);
   void Equivalences(char *, int);
   void DeleteAtoms(char *, int);
@@ -193,7 +184,6 @@ class FixBondReact : public Fix {
   double custom_constraint(const std::string &);    // evaulate expression for custom constraint
   double rxnfunction(const std::string &, const std::string &,
                      const std::string &);    // eval rxn_sum and rxn_ave
-  void get_atoms2bond(int);
   int get_chirality(double[12]);              // get handedness given an ordered set of coordinates
 
   void open(char *);
@@ -208,17 +198,16 @@ class FixBondReact : public Fix {
   void ghost_glovecast();
   void update_everything();
   int insert_atoms(tagint **, int);
-  void unlimit_bond(); // removes atoms from stabilization, and other post-reaction every-step operations
+  void unlimit_bond();
+  void limit_bond(int);
   void dedup_mega_gloves(int);    //dedup global mega_glove
   void write_restart(FILE *) override;
   void restart(char *buf) override;
 
-  // store restart data
   struct Set {
     int nreacts;
     char rxn_name[MAXLINE];
     int reaction_count_total;
-    int max_rate_limit_steps;
   };
   Set *set;
 
@@ -232,9 +221,7 @@ class FixBondReact : public Fix {
   int ncustomvars;
   std::vector<std::string> customvarstrs;
   int nvvec;
-  double **vvec;    // per-atom vector to store custom constraint atom-style variable values
-  class Compute *cperbond;    // pointer to 'compute bond/local' used by custom constraint ('rxnbond' function)
-  std::map<std::set<tagint>, int> atoms2bond;    // maps atom pair to index of local bond array
+  double **vvec;    // per-atom vector to store variable constraint atom-style variable values
   std::vector<std::vector<Constraint>> constraints;
 
   // DEBUG

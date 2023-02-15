@@ -2,7 +2,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -161,7 +161,7 @@ void DumpLocal::init_style()
   delete[] columns;
   std::string combined;
   int icol = 0;
-  for (const auto &item : utils::split_words(columns_default)) {
+  for (auto item : utils::split_words(columns_default)) {
     if (combined.size()) combined += " ";
     if (keyword_user[icol].size()) combined += keyword_user[icol];
     else combined += item;
@@ -185,11 +185,10 @@ void DumpLocal::init_style()
 
   auto words = utils::split_words(format);
   if ((int) words.size() <  size_one)
-    error->all(FLERR,"Dump_modify format line is too short: {}", format);
+    error->all(FLERR,"Dump_modify format line is too short");
 
   int i=0;
   for (const auto &word : words) {
-    if (i >= size_one) break;
     delete[] vformat[i];
 
     if (format_column_user[i])

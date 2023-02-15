@@ -1,7 +1,7 @@
 /* -*- c++ -*- ----------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -35,8 +35,8 @@ class Hyper : public Command {
   int t_event;
   double etol, ftol;
   int maxiter, maxeval;
-  int stepmode, dumpflag, rebond;
-  std::vector<class Dump *> dumplist;
+  int stepmode, dumpflag, ndump, rebond;
+  int *dumplist;
 
   int neigh_every, neigh_delay, neigh_dist_check;
   int quench_reneighbor;

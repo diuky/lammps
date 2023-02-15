@@ -2,7 +2,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -30,7 +30,7 @@ using namespace LAMMPS_NS;
 
 /* ---------------------------------------------------------------------- */
 
-CommTiledKokkos::CommTiledKokkos(LAMMPS *_lmp) : CommTiled(_lmp) {}
+CommTiledKokkos::CommTiledKokkos(LAMMPS *lmp) : CommTiled(lmp) {}
 
 /* ---------------------------------------------------------------------- */
 //IMPORTANT: we *MUST* pass "*oldcomm" to the Comm initializer here, as
@@ -39,7 +39,7 @@ CommTiledKokkos::CommTiledKokkos(LAMMPS *_lmp) : CommTiled(_lmp) {}
 //           The call to Comm::copy_arrays() then converts the shallow copy
 //           into a deep copy of the class with the new layout.
 
-CommTiledKokkos::CommTiledKokkos(LAMMPS *_lmp, Comm *oldcomm) : CommTiled(_lmp,oldcomm) {}
+CommTiledKokkos::CommTiledKokkos(LAMMPS *lmp, Comm *oldcomm) : CommTiled(lmp,oldcomm) {}
 
 /* ---------------------------------------------------------------------- */
 
@@ -168,8 +168,8 @@ void CommTiledKokkos::reverse_comm(Fix *fix, int size)
 
 /* ----------------------------------------------------------------------
    reverse communication invoked by a Fix with variable size data
-   query fix for all pack sizes to ensure buf_send is big enough
-   handshake sizes before irregular comm to ensure buf_recv is big enough
+   query fix for all pack sizes to insure buf_send is big enough
+   handshake sizes before irregular comm to insure buf_recv is big enough
    NOTE: how to setup one big buf recv with correct offsets ??
 ------------------------------------------------------------------------- */
 

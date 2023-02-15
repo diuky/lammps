@@ -2,7 +2,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -40,10 +40,10 @@ FixTempRescale::FixTempRescale(LAMMPS *lmp, int narg, char **arg) :
   Fix(lmp, narg, arg),
   tstr(nullptr), id_temp(nullptr), tflag(0)
 {
-  if (narg < 8) utils::missing_cmd_args(FLERR, "fix temp/rescale", error);
+  if (narg < 8) error->all(FLERR,"Illegal fix temp/rescale command");
 
   nevery = utils::inumeric(FLERR,arg[3],false,lmp);
-  if (nevery <= 0) error->all(FLERR, "Invalid fix temp/rescale every argument: {}", nevery);
+  if (nevery <= 0) error->all(FLERR,"Illegal fix temp/rescale command");
 
   restart_global = 1;
   scalar_flag = 1;
@@ -66,10 +66,6 @@ FixTempRescale::FixTempRescale(LAMMPS *lmp, int narg, char **arg) :
   t_window = utils::numeric(FLERR,arg[6],false,lmp);
   fraction = utils::numeric(FLERR,arg[7],false,lmp);
 
-  if (t_stop < 0) error->all(FLERR, "Invalid fix temp/rescale Tstop argument: {}", t_stop);
-  if (t_window < 0) error->all(FLERR, "Invalid fix temp/rescale window argument: {}", t_window);
-  if (fraction <= 0) error->all(FLERR, "Invalid fix temp/rescale fraction argument: {}", fraction);
-
   // create a new compute temp
   // id = fix-ID + temp, compute group = fix group
 
@@ -84,12 +80,12 @@ FixTempRescale::FixTempRescale(LAMMPS *lmp, int narg, char **arg) :
 
 FixTempRescale::~FixTempRescale()
 {
-  delete[] tstr;
+  delete [] tstr;
 
   // delete temperature if fix created it
 
   if (tflag) modify->delete_compute(id_temp);
-  delete[] id_temp;
+  delete [] id_temp;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -110,14 +106,15 @@ void FixTempRescale::init()
   if (tstr) {
     tvar = input->variable->find(tstr);
     if (tvar < 0)
-      error->all(FLERR,"Variable name {} for fix temp/rescale does not exist", tstr);
+      error->all(FLERR,"Variable name for fix temp/rescale does not exist");
     if (input->variable->equalstyle(tvar)) tstyle = EQUAL;
-    else error->all(FLERR,"Variable {} for fix temp/rescale is invalid style", tstr);
+    else error->all(FLERR,"Variable for fix temp/rescale is invalid style");
   }
 
-  temperature = modify->get_compute_by_id(id_temp);
-  if (!temperature)
-    error->all(FLERR,"Temperature ID {} for fix temp/rescale does not exist", id_temp);
+  int icompute = modify->find_compute(id_temp);
+  if (icompute < 0)
+    error->all(FLERR,"Temperature ID for fix temp/rescale does not exist");
+  temperature = modify->compute[icompute];
 
   if (temperature->tempbias) which = BIAS;
   else which = NOBIAS;
@@ -150,7 +147,8 @@ void FixTempRescale::end_of_step()
     modify->clearstep_compute();
     t_target = input->variable->compute_equal(tvar);
     if (t_target < 0.0)
-      error->one(FLERR, "Fix temp/rescale variable returned negative temperature");
+      error->one(FLERR,
+                 "Fix temp/rescale variable returned negative temperature");
     modify->addstep_compute(update->ntimestep + nevery);
   }
 
@@ -197,23 +195,24 @@ void FixTempRescale::end_of_step()
 int FixTempRescale::modify_param(int narg, char **arg)
 {
   if (strcmp(arg[0],"temp") == 0) {
-    if (narg < 2) utils::missing_cmd_args(FLERR, "fix_modify temp", error);
+    if (narg < 2) error->all(FLERR,"Illegal fix_modify command");
     if (tflag) {
       modify->delete_compute(id_temp);
       tflag = 0;
     }
-    delete[] id_temp;
+    delete [] id_temp;
     id_temp = utils::strdup(arg[1]);
 
-    temperature = modify->get_compute_by_id(id_temp);
-    if (!temperature)
-      error->all(FLERR,"Could not find fix_modify temperature compute {}", id_temp);
+    int icompute = modify->find_compute(id_temp);
+    if (icompute < 0)
+      error->all(FLERR,"Could not find fix_modify temperature ID");
+    temperature = modify->compute[icompute];
 
     if (temperature->tempflag == 0)
-      error->all(FLERR, "Fix_modify temperature compute {} does not compute temperature", id_temp);
+      error->all(FLERR,
+                 "Fix_modify temperature ID does not compute temperature");
     if (temperature->igroup != igroup && comm->me == 0)
-      error->warning(FLERR, "Group for fix_modify temp != fix group: {} vs {}",
-                     group->names[igroup], group->names[temperature->igroup]);
+      error->warning(FLERR,"Group for fix_modify temp != fix group");
     return 2;
   }
   return 0;

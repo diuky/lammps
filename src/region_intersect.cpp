@@ -1,7 +1,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -27,9 +27,9 @@ RegIntersect::RegIntersect(LAMMPS *lmp, int narg, char **arg) :
 {
   nregion = 0;
 
-  if (narg < 5) utils::missing_cmd_args(FLERR, "region intersect", error);
+  if (narg < 5) error->all(FLERR, "Illegal region command");
   int n = utils::inumeric(FLERR, arg[2], false, lmp);
-  if (n < 2) error->all(FLERR, "Illegal region intersect n: {}", n);
+  if (n < 2) error->all(FLERR, "Illegal region command");
   options(narg - (n + 3), &arg[n + 3]);
 
   // build list of regions to intersect
@@ -181,7 +181,7 @@ int RegIntersect::surface_interior(double *x, double cutoff)
         n++;
       }
     }
-    // increment by cmax instead of tmax to ensure
+    // increment by cmax instead of tmax to insure
     // possible wall IDs for sub-regions are non overlapping
     walloffset += region->cmax;
   }

@@ -2,7 +2,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -95,7 +95,7 @@ void ComputeGyrationChunk::init()
   if (icompute < 0)
     error->all(FLERR,"Chunk/atom compute does not exist for "
                "compute gyration/chunk");
-  cchunk = dynamic_cast<ComputeChunkAtom *>(modify->compute[icompute]);
+  cchunk = dynamic_cast<ComputeChunkAtom *>( modify->compute[icompute]);
   if (strcmp(cchunk->style,"chunk/atom") != 0)
     error->all(FLERR,"Compute gyration/chunk does not use chunk/atom compute");
 }
@@ -265,7 +265,7 @@ void ComputeGyrationChunk::com_chunk()
 
 /* ----------------------------------------------------------------------
    lock methods: called by fix ave/time
-   these methods ensure vector/array size is locked for Nfreq epoch
+   these methods insure vector/array size is locked for Nfreq epoch
      by passing lock info along to compute chunk/atom
 ------------------------------------------------------------------------- */
 
@@ -286,7 +286,7 @@ void ComputeGyrationChunk::lock_disable()
 {
   int icompute = modify->find_compute(idchunk);
   if (icompute >= 0) {
-    cchunk = dynamic_cast<ComputeChunkAtom *>(modify->compute[icompute]);
+    cchunk = dynamic_cast<ComputeChunkAtom *>( modify->compute[icompute]);
     cchunk->lockcount--;
   }
 }

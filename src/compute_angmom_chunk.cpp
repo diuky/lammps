@@ -1,7 +1,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -166,7 +166,7 @@ void ComputeAngmomChunk::compute_array()
 
 /* ----------------------------------------------------------------------
    lock methods: called by fix ave/time
-   these methods ensure vector/array size is locked for Nfreq epoch
+   these methods insure vector/array size is locked for Nfreq epoch
      by passing lock info along to compute chunk/atom
 ------------------------------------------------------------------------- */
 
@@ -185,8 +185,11 @@ void ComputeAngmomChunk::lock_enable()
 
 void ComputeAngmomChunk::lock_disable()
 {
-  cchunk = dynamic_cast<ComputeChunkAtom *>(modify->get_compute_by_id(idchunk));
-  if (cchunk) cchunk->lockcount--;
+  int icompute = modify->find_compute(idchunk);
+  if (icompute >= 0) {
+    cchunk = dynamic_cast<ComputeChunkAtom *>(modify->compute[icompute]);
+    cchunk->lockcount--;
+  }
 }
 
 /* ----------------------------------------------------------------------

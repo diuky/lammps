@@ -1,7 +1,7 @@
 /* -*- c++ -*- ----------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -43,12 +43,10 @@ class PairMEAM : public Pair {
   void unpack_reverse_comm(int, int *, double *) override;
   double memory_usage() override;
 
- protected:
+ private:
   class MEAM *meam_inst;
   double cutmax;                           // max cutoff for all elements
   int nlibelements;                        // # of library elements
-  int msmeamflag;                          // 0 (default) for normal MEAM, 1 for MS-MEAM
-  std::string myname;                      // name of the pair style
   std::vector<std::string> libelements;    // names of library elements
   std::vector<double> mass;                // mass of library element
 

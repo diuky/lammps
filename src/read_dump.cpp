@@ -2,7 +2,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -121,7 +121,7 @@ void ReadDump::command(int narg, char **arg)
 
   // reset timestep to nstep
 
-  if (timestepflag) update->reset_timestep(nstep, true);
+  update->reset_timestep(nstep, true);
 
   // counters
 
@@ -1202,7 +1202,6 @@ int ReadDump::fields_and_keywords(int narg, char **arg)
 
   multiproc_nfile = 0;
   boxflag = 1;
-  timestepflag = 1;
   replaceflag = 1;
   purgeflag = 0;
   trimflag = 0;
@@ -1219,10 +1218,6 @@ int ReadDump::fields_and_keywords(int narg, char **arg)
     } else if (strcmp(arg[iarg],"box") == 0) {
       if (iarg+2 > narg) error->all(FLERR,"Illegal read_dump command");
       boxflag = utils::logical(FLERR,arg[iarg+1],false,lmp);
-      iarg += 2;
-    } else if (strcmp(arg[iarg],"timestep") == 0) {
-      if (iarg+2 > narg) error->all(FLERR,"Illegal read_dump command");
-      timestepflag = utils::logical(FLERR,arg[iarg+1],false,lmp);
       iarg += 2;
     } else if (strcmp(arg[iarg],"replace") == 0) {
       if (iarg+2 > narg) error->all(FLERR,"Illegal read_dump command");

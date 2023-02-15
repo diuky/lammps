@@ -1,7 +1,7 @@
 /* -*- c++ -*- ----------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -40,6 +40,7 @@ class FixWidom : public Fix {
   double energy(int, int, tagint, double *);
   double molecule_energy(tagint);
   double energy_full();
+  void update_gas_atoms_list();
   double compute_vector(int) override;
   double memory_usage() override;
   void write_restart(FILE *) override;
@@ -52,7 +53,10 @@ class FixWidom : public Fix {
   int exclusion_group, exclusion_group_bit;
   int nwidom_type, nevery, seed;
   int ninsertions;
+  int ngas;                // # of gas atoms on all procs
+  int ngas_local;          // # of gas atoms on this proc
   int exchmode;            // exchange ATOM or MOLECULE
+  int movemode;            // move ATOM or MOLECULE
   class Region *region;    // widom region
   char *idregion;          // widom region id
   bool charge_flag;        // true if user specified atomic charge
@@ -67,13 +71,14 @@ class FixWidom : public Fix {
   int max_region_attempts;
   double gas_mass;
   double insertion_temperature;
-  double beta, volume;
+  double beta, sigma, volume;
   double charge;
   double xlo, xhi, ylo, yhi, zlo, zhi;
   double region_xlo, region_xhi, region_ylo, region_yhi, region_zlo, region_zhi;
   double region_volume;
   double energy_stored;    // full energy of old/current configuration
   double *sublo, *subhi;
+  int *local_gas_list;
   double **cutsq;
   double **molcoords;
   double *molq;
@@ -88,7 +93,8 @@ class FixWidom : public Fix {
 
   class Atom *model_atom;
 
-  class Molecule *onemol;
+  class Molecule **onemols;
+  int imol, nmol;
   int triclinic;    // 0 = orthog box, 1 = triclinic
 
   class Compute *c_pe;

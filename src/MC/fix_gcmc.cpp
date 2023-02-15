@@ -2,7 +2,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -138,17 +138,10 @@ FixGCMC::FixGCMC(LAMMPS *lmp, int narg, char **arg) :
     region_zlo = region->extent_zlo;
     region_zhi = region->extent_zhi;
 
-    if (triclinic) {
-      if ((region_xlo < domain->boxlo_bound[0]) || (region_xhi > domain->boxhi_bound[0]) ||
-          (region_ylo < domain->boxlo_bound[1]) || (region_yhi > domain->boxhi_bound[1]) ||
-          (region_zlo < domain->boxlo_bound[2]) || (region_zhi > domain->boxhi_bound[2]))
-        error->all(FLERR,"Fix gcmc region {} extends outside simulation box", region->id);
-    } else {
-      if ((region_xlo < domain->boxlo[0]) || (region_xhi > domain->boxhi[0]) ||
-          (region_ylo < domain->boxlo[1]) || (region_yhi > domain->boxhi[1]) ||
-          (region_zlo < domain->boxlo[2]) || (region_zhi > domain->boxhi[2]))
-        error->all(FLERR,"Fix gcmc region {} extends outside simulation box", region->id);
-    }
+    if (region_xlo < domain->boxlo[0] || region_xhi > domain->boxhi[0] ||
+        region_ylo < domain->boxlo[1] || region_yhi > domain->boxhi[1] ||
+        region_zlo < domain->boxlo[2] || region_zhi > domain->boxhi[2])
+      error->all(FLERR,"Fix gcmc region extends outside simulation box");
 
     // estimate region volume using MC trials
 
@@ -184,7 +177,7 @@ FixGCMC::FixGCMC(LAMMPS *lmp, int narg, char **arg) :
     if (atom->molecular == Atom::TEMPLATE && onemols != atom->avec->onemols)
       error->all(FLERR,"Fix gcmc molecule template ID must be same "
                  "as atom_style template ID");
-    onemols[imol]->check_attributes();
+    onemols[imol]->check_attributes(0);
   }
 
   if (charge_flag && atom->q == nullptr)
@@ -2579,18 +2572,4 @@ void FixGCMC::grow_molecule_arrays(int nmolatoms) {
     molcoords = memory->grow(molcoords,nmaxmolatoms,3,"gcmc:molcoords");
     molq = memory->grow(molq,nmaxmolatoms,"gcmc:molq");
     molimage = memory->grow(molimage,nmaxmolatoms,"gcmc:molimage");
-}
-
-
-/* ----------------------------------------------------------------------
-   extract variable which stores index of exclusion group
-------------------------------------------------------------------------- */
-
-void *FixGCMC::extract(const char *name, int &dim)
-{
-  if (strcmp(name,"exclusion_group") == 0) {
-    dim = 0;
-    return (void *) &exclusion_group;
-  }
-  return nullptr;
 }

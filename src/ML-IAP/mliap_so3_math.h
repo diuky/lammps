@@ -9,7 +9,6 @@
 #define LMP_MLIAP_SO3_MATH_H
 
 #include "math_eigen_impl.h"
-#include <cmath>
 
 namespace SO3Math {
 
@@ -23,7 +22,7 @@ void LUPSolve(int n, double *A, double *B, int *P);
 using namespace MathEigen;
 
 typedef Jacobi<double, double *, double **, double const *const *> Jacobi_v2;
-inline int SO3Math::jacobin(int n, double const *const *mat, double *eval, double **evec)
+int SO3Math::jacobin(int n, double const *const *mat, double *eval, double **evec)
 {
   int *midx = new int[n];
   double **M = new double *[n];
@@ -49,7 +48,7 @@ inline int SO3Math::jacobin(int n, double const *const *mat, double *eval, doubl
   return ierror;
 }
 
-inline int SO3Math::invert_matrix(int n, double *A, double *Ainv)
+int SO3Math::invert_matrix(int n, double *A, double *Ainv)
 {
 
   int i, j;
@@ -86,7 +85,7 @@ inline int SO3Math::invert_matrix(int n, double *A, double *Ainv)
   return rv;
 }
 
-inline int SO3Math::LUPdecompose(int n, double dtol, double *A, int *P)
+int SO3Math::LUPdecompose(int n, double dtol, double *A, int *P)
 {
   int i, j, k, maxi;
   double maxA, Atemp;
@@ -149,7 +148,7 @@ inline int SO3Math::LUPdecompose(int n, double dtol, double *A, int *P)
   return 0;
 }
 
-inline void SO3Math::LUPSolve(int n, double *A, double *B, int *P)
+void SO3Math::LUPSolve(int n, double *A, double *B, int *P)
 {
   int i, j;
   double dtemp;

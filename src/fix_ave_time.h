@@ -1,7 +1,7 @@
 /* -*- c++ -*- ----------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -40,24 +40,12 @@ class FixAveTime : public Fix {
   double compute_array(int, int) override;
 
  private:
-  struct value_t {
-    int which;       // type of data: COMPUTE, FIX, VARIABLE
-    int argindex;    // 1-based index if data is vector, else 0
-    int varlen;      // 1 if value is from variable-length compute
-    int offcol;
-    std::string id;         // compute/fix/variable ID
-    std::string keyword;    // column keyword in output
-    union {
-      class Compute *c;
-      class Fix *f;
-      int v;
-    } val;
-  };
-  std::vector<value_t> values;
-
-  int nvalues, nrepeat, nfreq, irepeat;
+  int me, nvalues;
+  int nrepeat, nfreq, irepeat;
   bigint nvalid, nvalid_last;
-
+  int *which, *argindex, *value2index, *offcol;
+  int *varlen;    // 1 if value is from variable-length compute
+  char **ids;
   FILE *fp;
   int nrows;
   int any_variable_length;
@@ -73,6 +61,7 @@ class FixAveTime : public Fix {
   bigint filepos;
 
   std::map<std::string, int> key2col;
+  std::vector<std::string> keyword;
 
   int norm, iwindow, window_limit;
   double *vector;
@@ -90,6 +79,8 @@ class FixAveTime : public Fix {
   void allocate_arrays();
   bigint nextvalid();
 };
+
 }    // namespace LAMMPS_NS
+
 #endif
 #endif

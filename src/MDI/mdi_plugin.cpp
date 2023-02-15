@@ -1,7 +1,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/ Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -19,6 +19,7 @@
 #include "mdi_plugin.h"
 
 #include "error.h"
+#include "fix_mdi_aimd.h"
 #include "input.h"
 #include "modify.h"
 
@@ -64,7 +65,9 @@ MDIPlugin::MDIPlugin(LAMMPS *_lmp, int narg, char **arg) : Pointers(_lmp)
       iarg += 2;
     } else if (strcmp(arg[iarg], "command") == 0) {
       if (iarg + 2 > narg) error->all(FLERR, "Illegal mdi plugin command");
-      lammps_command = utils::strdup(arg[iarg + 1]);
+      int n = strlen(arg[iarg + 1]) + 1;
+      lammps_command = new char[n];
+      strcpy(lammps_command, arg[iarg + 1]);
       iarg += 2;
     } else
       error->all(FLERR, "Illegal mdi plugin command");
@@ -72,23 +75,18 @@ MDIPlugin::MDIPlugin(LAMMPS *_lmp, int narg, char **arg) : Pointers(_lmp)
 
   // error checks
 
-  if (!mdi_arg || !lammps_command)
-    error->all(FLERR, "MDI plugin must specify mdi and command keywords");
+  if (!mdi_arg || !infile_arg || !lammps_command)
+    error->all(FLERR, "MDI plugin must specify mdi, infile, command keywords");
 
   // build full plugin_args string for args to plugin library
 
-  int n = strlen(mdi_arg) + 16;
-  if (infile_arg) n += strlen(infile_arg);
-  if (extra_arg) n += strlen(extra_arg);
+  int n = strlen(mdi_arg) + strlen(infile_arg) + strlen(extra_arg) + 16;
   auto plugin_args = new char[n];
   plugin_args[0] = 0;
   strcat(plugin_args, "-mdi \"");
   strcat(plugin_args, mdi_arg);
-  strcat(plugin_args, "\"");
-  if (infile_arg) {
-    strcat(plugin_args, " -in ");
-    strcat(plugin_args, infile_arg);
-  }
+  strcat(plugin_args, "\" -in ");
+  strcat(plugin_args, infile_arg);
   if (extra_arg) {
     strcat(plugin_args, " ");
     strcat(plugin_args, extra_arg);
@@ -96,8 +94,7 @@ MDIPlugin::MDIPlugin(LAMMPS *_lmp, int narg, char **arg) : Pointers(_lmp)
 
   // launch the MDI plugin library
   // path for lib was specified in -mdi command-line arg when LAMMPS started
-  // this calls back to plugin_wrapper(), which issues MDI EXIT at end & returns
-  // plugin_wrapper() must be a static method
+  // this calls back to plugin_wrapper, which must issue MDI EXIT at end
 
   MDI_Launch_plugin(plugin_name, plugin_args, &world, plugin_wrapper, (void *) this);
 
@@ -105,9 +102,8 @@ MDIPlugin::MDIPlugin(LAMMPS *_lmp, int narg, char **arg) : Pointers(_lmp)
 }
 
 /* ----------------------------------------------------------------------
-   wrapper on entire interaction of LAMMPS as a driver with the plugin engine
-   invoked as a callback by MDI once plugin library engine is launched
-   this is a static method in mdi_plugin.h
+   callback function from MDI_Launch_plugin()
+   this function wraps entire interaction of LAMMPS driver with the plugin
 ---------------------------------------------------------------------- */
 
 int MDIPlugin::plugin_wrapper(void * /*pmpicomm*/, MDI_Comm mdicomm, void *vptr)

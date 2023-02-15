@@ -1,7 +1,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -41,7 +41,7 @@ void WriteCoeff::command(int narg, char **arg)
   if (domain->box_exist == 0)
     error->all(FLERR, "Write_coeff command before simulation box is defined");
 
-  if (narg != 1) utils::missing_cmd_args(FLERR, "write_coeff", error);
+  if (narg != 1) error->all(FLERR, "Illegal write_coeff command");
 
   char *file = utils::strdup(fmt::format("{}.tmp", arg[0]));
 
@@ -167,5 +167,6 @@ void WriteCoeff::command(int narg, char **arg)
     fclose(two);
     platform::unlink(file);
   }
+
   delete[] file;
 }

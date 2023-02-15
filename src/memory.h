@@ -1,8 +1,7 @@
-// clang-format off
 /* -*- c++ -*- ----------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -28,7 +27,7 @@ class Memory : protected Pointers {
   void sfree(void *);
   void fail(const char *);
 
-/* ----------------------------------------------------------------------
+  /* ----------------------------------------------------------------------
    create/grow/destroy vecs and multidim arrays with contiguous memory blocks
    only use with primitive data types, e.g. 1d vec of ints, 2d array of doubles
    fail() prevents use with pointers,
@@ -37,11 +36,7 @@ class Memory : protected Pointers {
    for these other cases, use smalloc/srealloc/sfree directly
 ------------------------------------------------------------------------- */
 
-// -------------------------------------------------------------------------
-// -------------------------------------------------------------------------
-// -------------------------------------------------------------------------
-
-/* ----------------------------------------------------------------------
+  /* ----------------------------------------------------------------------
    create a 1d array
 ------------------------------------------------------------------------- */
 
@@ -61,7 +56,7 @@ class Memory : protected Pointers {
     return nullptr;
   }
 
-/* ----------------------------------------------------------------------
+  /* ----------------------------------------------------------------------
    grow or shrink 1d array
 ------------------------------------------------------------------------- */
 
@@ -96,11 +91,7 @@ class Memory : protected Pointers {
     array = nullptr;
   }
 
-// -------------------------------------------------------------------------
-// -------------------------------------------------------------------------
-// -------------------------------------------------------------------------
-
-/* ----------------------------------------------------------------------
+  /* ----------------------------------------------------------------------
    create a 1d array with index from nlo to nhi inclusive
    cannot grow it
 ------------------------------------------------------------------------- */
@@ -123,7 +114,7 @@ class Memory : protected Pointers {
     return nullptr;
   }
 
-/* ----------------------------------------------------------------------
+  /* ----------------------------------------------------------------------
    destroy a 1d array with index offset
 ------------------------------------------------------------------------- */
 
@@ -133,11 +124,7 @@ class Memory : protected Pointers {
     array = nullptr;
   }
 
-// -------------------------------------------------------------------------
-// -------------------------------------------------------------------------
-// -------------------------------------------------------------------------
-
-/* ----------------------------------------------------------------------
+  /* ----------------------------------------------------------------------
    create a 2d array
 ------------------------------------------------------------------------- */
 
@@ -166,7 +153,7 @@ class Memory : protected Pointers {
     return nullptr;
   }
 
-/* ----------------------------------------------------------------------
+  /* ----------------------------------------------------------------------
    grow or shrink 1st dim of a 2d array
    last dim must stay the same
 ------------------------------------------------------------------------- */
@@ -201,7 +188,7 @@ class Memory : protected Pointers {
     return nullptr;
   }
 
-/* ----------------------------------------------------------------------
+  /* ----------------------------------------------------------------------
    destroy a 2d array
 ------------------------------------------------------------------------- */
 
@@ -213,11 +200,7 @@ class Memory : protected Pointers {
     array = nullptr;
   }
 
-// -------------------------------------------------------------------------
-// -------------------------------------------------------------------------
-// -------------------------------------------------------------------------
-
-/* ----------------------------------------------------------------------
+  /* ----------------------------------------------------------------------
    create a 2d array with a ragged 2nd dimension
 ------------------------------------------------------------------------- */
 
@@ -276,10 +259,6 @@ class Memory : protected Pointers {
     return array;
   }
 
-// -------------------------------------------------------------------------
-// -------------------------------------------------------------------------
-// -------------------------------------------------------------------------
-
   /* ----------------------------------------------------------------------
    create a 2d array with 2nd index from n2lo to n2hi inclusive
    cannot grow it
@@ -316,57 +295,6 @@ class Memory : protected Pointers {
     sfree(array);
     array = nullptr;
   }
-
-// -------------------------------------------------------------------------
-// -------------------------------------------------------------------------
-// -------------------------------------------------------------------------
-
-/* ----------------------------------------------------------------------
-   create a 2d array with both indices offset
-   1st index from n1lo to n1hi inclusive
-   2nd index from n2lo to n2hi inclusive
-   cannot grow it
-------------------------------------------------------------------------- */
-
-  template <typename TYPE>
-  TYPE **create2d_offset(TYPE **&array, int n1lo, int n1hi, int n2lo, int n2hi,
-                         const char *name)
-  {
-    if (n1lo > n1hi || n2lo > n2hi) return nullptr;
-
-    int n1 = n1hi - n1lo + 1;
-    int n2 = n2hi - n2lo + 1;
-    create(array, n1, n2, name);
-
-    for (int i = 0; i < n1; i++) array[i] -= n2lo;
-    array -= n1lo;
-    return array;
-  }
-
-  template <typename TYPE>
-  TYPE ***create2d_offset(TYPE ***& /*array*/, int /*n1lo*/, int /*n1hi*/, int /*n2lo*/,
-                           int /*n2hi*/, const char *name)
-  {
-    fail(name);
-    return nullptr;
-  }
-
-  /* ----------------------------------------------------------------------
-   free a 2d array with both indices offset
-------------------------------------------------------------------------- */
-
-  template <typename TYPE>
-  void destroy2d_offset(TYPE **&array, int n1_offset, int n2_offset)
-  {
-    if (array == nullptr) return;
-    sfree(&array[n1_offset][n2_offset]);
-    sfree(&array[n1_offset]);
-    array = nullptr;
-  }
-
-// -------------------------------------------------------------------------
-// -------------------------------------------------------------------------
-// -------------------------------------------------------------------------
 
   /* ----------------------------------------------------------------------
    create a 3d array
@@ -461,10 +389,6 @@ class Memory : protected Pointers {
     array = nullptr;
   }
 
-// -------------------------------------------------------------------------
-// -------------------------------------------------------------------------
-// -------------------------------------------------------------------------
-
   /* ----------------------------------------------------------------------
    create a 3d array with 1st index from n1lo to n1hi inclusive
    cannot grow it
@@ -502,14 +426,10 @@ class Memory : protected Pointers {
     array = nullptr;
   }
 
-// -------------------------------------------------------------------------
-// -------------------------------------------------------------------------
-// -------------------------------------------------------------------------
-
-/* ----------------------------------------------------------------------
-   create a 3d array with all 3 indices offset
-   1st index from n1lo to n1hi inclusive
-   2nd index from n2lo to n2hi inclusive
+  /* ----------------------------------------------------------------------
+   create a 3d array with
+   1st index from n1lo to n1hi inclusive,
+   2nd index from n2lo to n2hi inclusive,
    3rd index from n3lo to n3hi inclusive
    cannot grow it
 ------------------------------------------------------------------------- */
@@ -553,57 +473,6 @@ class Memory : protected Pointers {
     sfree(&array[n1_offset]);
     array = nullptr;
   }
-
-// -------------------------------------------------------------------------
-// -------------------------------------------------------------------------
-// -------------------------------------------------------------------------
-
-/* ----------------------------------------------------------------------
-   create a 3d array with indices 1,2 offset, but not last
-   1st index from n1lo to n1hi inclusive
-   2nd index from n2lo to n2hi inclusive
-   cannot grow it
-------------------------------------------------------------------------- */
-
-  template <typename TYPE>
-  TYPE ***create3d_offset_last(TYPE ***&array, int n1lo, int n1hi,
-                               int n2lo, int n2hi, int n3,
-                               const char *name)
-  {
-    if (n1lo > n1hi || n2lo > n2hi || n3 < 0) return nullptr;
-
-    int n1 = n1hi - n1lo + 1;
-    int n2 = n2hi - n2lo + 1;
-    create(array,n1,n2,n3,name);
-
-    for (int i = 0; i < n1; i++) array[i] -= n2lo;
-    array -= n1lo;
-    return array;
-  }
-
-  template <typename TYPE>
-  TYPE ***create3d_offset_last(TYPE ****& /*array*/, int /*n1lo*/, int /*n1hi*/,
-                               int /*n2lo*/, int /*n2hi*/, int /*n3*/,
-                               const char *name)
-  {fail(name); return nullptr;}
-
-/* ----------------------------------------------------------------------
-   free a 3d array with indices 1,2 offset, but not last
-------------------------------------------------------------------------- */
-
-  template <typename TYPE>
-  void destroy3d_offset_last(TYPE ***&array, int n1_offset, int n2_offset)
-  {
-    if (array == nullptr) return;
-    sfree(&array[n1_offset][n2_offset][0]);
-    sfree(&array[n1_offset][n2_offset]);
-    sfree(&array[n1_offset]);
-    array = nullptr;
-  }
-
-// -------------------------------------------------------------------------
-// -------------------------------------------------------------------------
-// -------------------------------------------------------------------------
 
   /* ----------------------------------------------------------------------
    create a 4d array
@@ -719,12 +588,8 @@ class Memory : protected Pointers {
     array = nullptr;
   }
 
-// -------------------------------------------------------------------------
-// -------------------------------------------------------------------------
-// -------------------------------------------------------------------------
-
-/* ----------------------------------------------------------------------
-   create a 4d array with indices 2,3,4 offset, but not first
+  /* ----------------------------------------------------------------------
+   create a 4d array with indices
    2nd index from n2lo to n2hi inclusive
    3rd index from n3lo to n3hi inclusive
    4th index from n4lo to n4hi inclusive
@@ -759,7 +624,7 @@ class Memory : protected Pointers {
   }
 
   /* ----------------------------------------------------------------------
-   free a 4d array with indices 2,3,4 offset, but not first
+   free a 4d array with indices 2,3,4 offset
 ------------------------------------------------------------------------- */
 
   template <typename TYPE>
@@ -773,65 +638,7 @@ class Memory : protected Pointers {
     array = nullptr;
   }
 
-// -------------------------------------------------------------------------
-// -------------------------------------------------------------------------
-// -------------------------------------------------------------------------
-
-/* ----------------------------------------------------------------------
-   create a 4d array with indices 1,2,3 offset, but not last
-   1st index from n1lo to n1hi inclusive
-   2nd index from n2lo to n2hi inclusive
-   3rd index from n3lo to n3hi inclusive
-   cannot grow it
-------------------------------------------------------------------------- */
-
-  template <typename TYPE>
-  TYPE ****create4d_offset_last(TYPE ****&array, int n1lo, int n1hi, int n2lo, int n2hi, int n3lo,
-                                int n3hi, int n4, const char *name)
-  {
-    if (n1lo > n1hi || n2lo > n2hi || n3lo > n3hi || n4 <= 0) return nullptr;
-
-    int n1 = n1hi - n1lo + 1;
-    int n2 = n2hi - n2lo + 1;
-    int n3 = n3hi - n3lo + 1;
-    create(array, n1, n2, n3, n4, name);
-
-    bigint m = ((bigint) n1) * n2;
-    for (bigint i = 0; i < m; i++) array[0][i] -= n3lo;
-    for (int i = 0; i < n1; i++) array[i] -= n2lo;
-    array -= n1lo;
-    return array;
-  }
-
-  template <typename TYPE>
-  TYPE ****create4d_offset_last(TYPE *****& /*array*/, int /*n1lo*/, int /*n1hi*/, int /*n2lo*/,
-                                int /*n2hi*/, int /*n3lo*/, int /*n3hi*/, int /*n4*/,
-                                const char *name)
-  {
-    fail(name);
-    return nullptr;
-  }
-
-/* ----------------------------------------------------------------------
-   free a 4d array with indices 1,2,3 offset, but not last
-------------------------------------------------------------------------- */
-
-  template <typename TYPE>
-  void destroy4d_offset_last(TYPE ****&array, int n1_offset, int n2_offset, int n3_offset)
-  {
-    if (array == nullptr) return;
-    sfree(&array[n1_offset][n2_offset][n3_offset][0]);
-    sfree(&array[n1_offset][n2_offset][n3_offset]);
-    sfree(&array[n1_offset][n2_offset]);
-    sfree(&array[n1_offset]);
-    array = nullptr;
-  }
-
-// -------------------------------------------------------------------------
-// -------------------------------------------------------------------------
-// -------------------------------------------------------------------------
-
-/* ----------------------------------------------------------------------
+  /* ----------------------------------------------------------------------
    create a 5d array
 ------------------------------------------------------------------------- */
 
@@ -885,7 +692,7 @@ class Memory : protected Pointers {
     return nullptr;
   }
 
-/* ----------------------------------------------------------------------
+  /* ----------------------------------------------------------------------
    destroy a 5d array
 ------------------------------------------------------------------------- */
 
@@ -900,11 +707,7 @@ class Memory : protected Pointers {
     array = nullptr;
   }
 
-// -------------------------------------------------------------------------
-// -------------------------------------------------------------------------
-// -------------------------------------------------------------------------
-
-/* ----------------------------------------------------------------------
+  /* ----------------------------------------------------------------------
    memory usage of arrays, including pointers
 ------------------------------------------------------------------------- */
 

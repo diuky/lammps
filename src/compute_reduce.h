@@ -1,7 +1,7 @@
 /* -*- c++ -*- ----------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -37,38 +37,30 @@ class ComputeReduce : public Compute {
   double memory_usage() override;
 
  protected:
+  int me;
   int mode, nvalues;
-  struct value_t {
-    int which;
-    int argindex;
-    std::string id;
-    int flavor;
-    union {
-      class Compute *c;
-      class Fix *f;
-      int v;
-    } val;
-  };
-  std::vector<value_t> values;
+  int *which, *argindex, *flavor, *value2index;
+  char **ids;
   double *onevec;
   int *replace, *indices, *owner;
-
   int index;
   char *idregion;
   class Region *region;
   int maxatom;
   double *varatom;
 
-  struct valpair {
+  struct Pair {
     double value;
     int proc;
   };
-  valpair pairme, pairall;
+  Pair pairme, pairall;
 
   virtual double compute_one(int, int);
   virtual bigint count(int);
   void combine(double &, double, int);
 };
+
 }    // namespace LAMMPS_NS
+
 #endif
 #endif

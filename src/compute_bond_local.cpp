@@ -2,7 +2,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -34,7 +34,7 @@ using namespace LAMMPS_NS;
 #define DELTA 10000
 #define EPSILON 1.0e-12
 
-enum{DIST,DX,DY,DZ,VELVIB,OMEGA,ENGTRANS,ENGVIB,ENGROT,ENGPOT,FORCE,FX,FY,FZ,VARIABLE,BN};
+enum{DIST,DX,DY,DZ,VELVIB,OMEGA,ENGTRANS,ENGVIB,ENGROT,ENGPOT,FORCE,FX,FY,FZ,VARIABLE};
 
 /* ---------------------------------------------------------------------- */
 
@@ -54,7 +54,6 @@ ComputeBondLocal::ComputeBondLocal(LAMMPS *lmp, int narg, char **arg) :
 
   nvalues = narg - 3;
   bstyle = new int[nvalues];
-  bindex = new int[nvalues];
   vstr = new char*[nvalues];
   vvar = new int[nvalues];
 
@@ -81,11 +80,6 @@ ComputeBondLocal::ComputeBondLocal(LAMMPS *lmp, int narg, char **arg) :
       bstyle[nvalues++] = VARIABLE;
       vstr[nvar] = utils::strdup(&arg[iarg][2]);
       nvar++;
-    } else if (arg[iarg][0] == 'b') {
-      int n = atoi(&arg[iarg][1]);
-      if (n <= 0) error->all(FLERR, "Invalid keyword {} in compute bond/local command", arg[iarg]);
-      bstyle[nvalues] = BN;
-      bindex[nvalues++] = n - 1;
     } else break;
   }
 
@@ -137,7 +131,7 @@ ComputeBondLocal::ComputeBondLocal(LAMMPS *lmp, int narg, char **arg) :
   velflag = 0;
   for (int i = 0; i < nvalues; i++) {
     if (bstyle[i] == ENGPOT || bstyle[i] == FORCE || bstyle[i] == FX       ||
-        bstyle[i] == FY     || bstyle[i] == FZ || bstyle[i] == BN) singleflag = 1;
+        bstyle[i] == FY     || bstyle[i] == FZ) singleflag = 1;
     if (bstyle[i] == VELVIB || bstyle[i] == OMEGA || bstyle[i] == ENGTRANS ||
         bstyle[i] == ENGVIB || bstyle[i] == ENGROT) velflag = 1;
   }
@@ -157,7 +151,6 @@ ComputeBondLocal::ComputeBondLocal(LAMMPS *lmp, int narg, char **arg) :
 ComputeBondLocal::~ComputeBondLocal()
 {
   delete [] bstyle;
-  delete [] bindex;
   for (int i = 0; i < nvar; i++) delete [] vstr[i];
   delete [] vstr;
   delete [] vvar;
@@ -174,10 +167,6 @@ void ComputeBondLocal::init()
 {
   if (force->bond == nullptr)
     error->all(FLERR,"No bond style is defined for compute bond/local");
-
-  for (int i = 0; i < nvalues; i++)
-    if (bstyle[i] == BN && bindex[i] >= force->bond->single_extra)
-      error->all(FLERR, "Bond style does not have extra field requested by compute bond/local");
 
   if (nvar) {
     for (int i = 0; i < nvar; i++) {
@@ -448,9 +437,6 @@ int ComputeBondLocal::compute_bonds(int flag)
           case VARIABLE:
             ptr[n] = input->variable->compute_equal(vvar[ivar]);
             ivar++;
-            break;
-          case BN:
-            ptr[n] = bond->svector[bindex[n]];
             break;
           }
         }

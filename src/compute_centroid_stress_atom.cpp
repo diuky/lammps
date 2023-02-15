@@ -1,7 +1,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -36,13 +36,12 @@ using namespace LAMMPS_NS;
 enum { NOBIAS, BIAS };
 
 static const char cite_centroid_angle_improper_dihedral[] =
-    "compute centroid/stress/atom for angles, impropers and dihedrals: "
-    "doi:10.1103/PhysRevE.99.051301\n\n"
-    "@article{Surblys2019,\n"
-    " title = {Application of Atomic Stress to Compute Heat Flux via Molecular\n"
-    "    Dynamics for Systems With Many-Body Interactions},\n"
+    "compute centroid/stress/atom for angles, impropers and dihedrals:\n\n"
+    "@article{PhysRevE.99.051301,\n"
+    " title = {Application of atomic stress to compute heat flux via molecular dynamics for "
+    "systems with many-body interactions},\n"
     " author = {Surblys, Donatas and Matsubara, Hiroki and Kikugawa, Gota and Ohara, Taku},\n"
-    " journal = {Physical Review~E},\n"
+    " journal = {Physical Review E},\n"
     " volume = {99},\n"
     " issue = {5},\n"
     " pages = {051301},\n"
@@ -52,12 +51,12 @@ static const char cite_centroid_angle_improper_dihedral[] =
     "}\n\n";
 
 static const char cite_centroid_shake_rigid[] =
-    "compute centroid/stress/atom for constrained dynamics: doi:10.1063/5.0070930\n\n"
-    "@article{Surblys2021,\n"
+    "compute centroid/stress/atom for constrained dynamics:\n\n"
+    "@article{doi:10.1063/5.0070930,\n"
     " author = {Surblys, Donatas and Matsubara, Hiroki and Kikugawa, Gota and Ohara, Taku},\n"
     " journal = {Journal of Applied Physics},\n"
-    " title = {Methodology and Meaning of Computing Heat Flux via Atomic Stress in Systems with\n"
-    "    Constraint Dynamics},\n"
+    " title = {Methodology and meaning of computing heat flux via atomic stress in systems with "
+    "constraint dynamics},\n"
     " volume = {130},\n"
     " number = {21},\n"
     " pages = {215104},\n"
@@ -80,7 +79,7 @@ ComputeCentroidStressAtom::ComputeCentroidStressAtom(LAMMPS *lmp, int narg, char
   comm_reverse = 9;
 
   // store temperature ID used by stress computation
-  // ensure it is valid for temperature computation
+  // insure it is valid for temperature computation
 
   if (strcmp(arg[3], "NULL") == 0)
     id_temp = nullptr;
@@ -395,7 +394,7 @@ void ComputeCentroidStressAtom::compute_peratom()
     } else {
 
       // invoke temperature if it hasn't been already
-      // this ensures bias factor is pre-computed
+      // this insures bias factor is pre-computed
 
       if (keflag && temperature->invoked_scalar != update->ntimestep) temperature->compute_scalar();
 

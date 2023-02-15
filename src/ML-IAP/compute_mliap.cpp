@@ -2,7 +2,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -98,7 +98,9 @@ ComputeMLIAP::ComputeMLIAP(LAMMPS *lmp, int narg, char **arg) :
       descriptorflag = 1;
     } else if (strcmp(arg[iarg],"gradgradflag") == 0) {
       if (iarg+1 > narg) error->all(FLERR,"Illegal compute mliap command");
-      gradgradflag = utils::logical(FLERR, arg[iarg+1], false, lmp);
+      gradgradflag = atoi(arg[iarg+1]);
+      if (gradgradflag != 0 && gradgradflag != 1)
+        error->all(FLERR,"Illegal compute mliap command");
       iarg += 2;
     } else
       error->all(FLERR,"Illegal compute mliap command");

@@ -2,7 +2,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -596,7 +596,7 @@ void FixShardlowKokkos<DeviceType>::initial_integrate(int /*vflag*/)
     for (int i = 0; i < maxWorkItemCt; ++i) {
       es_genNextParallelState(serial_rand_state, h_rand_state(i));
     }
-    Kokkos::deep_copy(d_rand_state,h_rand_state);
+    deep_copy(d_rand_state,h_rand_state);
 
     maxRNG = maxWorkItemCt;
   }
@@ -606,8 +606,8 @@ void FixShardlowKokkos<DeviceType>::initial_integrate(int /*vflag*/)
     for (int j = 0; j < 3; ++j)
       h_counters(i,j) = 0;
   for (int i = 0; i < 32; ++i) h_hist[i] = 0;
-  Kokkos::deep_copy(d_counters, h_counters);
-  Kokkos::deep_copy(d_hist, h_hist);
+  deep_copy(d_counters, h_counters);
+  deep_copy(d_hist, h_hist);
 #endif
 
   //theta_ij_inv = 1.0/k_pairDPD->temperature; // independent of i,j

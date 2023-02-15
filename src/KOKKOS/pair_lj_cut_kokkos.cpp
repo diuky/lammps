@@ -2,7 +2,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -29,6 +29,9 @@
 #include <cstring>
 
 using namespace LAMMPS_NS;
+
+#define KOKKOS_CUDA_MAX_THREADS 256
+#define KOKKOS_CUDA_MIN_BLOCKS 8
 
 /* ---------------------------------------------------------------------- */
 
@@ -66,6 +69,7 @@ void PairLJCutKokkos<DeviceType>::compute(int eflag_in, int vflag_in)
   eflag = eflag_in;
   vflag = vflag_in;
 
+
   if (neighflag == FULL) no_virial_fdotr_compute = 1;
 
   ev_init(eflag,vflag,0);
@@ -93,6 +97,7 @@ void PairLJCutKokkos<DeviceType>::compute(int eflag_in, int vflag_in)
   c_x = atomKK->k_x.view<DeviceType>();
   f = atomKK->k_f.view<DeviceType>();
   type = atomKK->k_type.view<DeviceType>();
+  tag = atomKK->k_tag.view<DeviceType>();
   nlocal = atom->nlocal;
   nall = atom->nlocal + atom->nghost;
   newton_pair = force->newton_pair;
@@ -129,7 +134,6 @@ void PairLJCutKokkos<DeviceType>::compute(int eflag_in, int vflag_in)
 
   if (vflag_fdotr) pair_virial_fdotr_compute(this);
 
-  copymode = 0;
 }
 
 template<class DeviceType>

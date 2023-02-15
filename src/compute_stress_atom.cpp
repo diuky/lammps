@@ -1,7 +1,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -48,7 +48,7 @@ ComputeStressAtom::ComputeStressAtom(LAMMPS *lmp, int narg, char **arg) :
   comm_reverse = 6;
 
   // store temperature ID used by stress computation
-  // ensure it is valid for temperature computation
+  // insure it is valid for temperature computation
 
   if (strcmp(arg[3], "NULL") == 0)
     id_temp = nullptr;
@@ -288,7 +288,7 @@ void ComputeStressAtom::compute_peratom()
     } else {
 
       // invoke temperature if it hasn't been already
-      // this ensures bias factor is pre-computed
+      // this insures bias factor is pre-computed
 
       if (keflag && temperature->invoked_scalar != update->ntimestep) temperature->compute_scalar();
 

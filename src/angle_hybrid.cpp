@@ -1,7 +1,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -20,6 +20,7 @@
 #include "memory.h"
 #include "neighbor.h"
 
+#include <cctype>
 #include <cstring>
 
 using namespace LAMMPS_NS;
@@ -305,16 +306,6 @@ void AngleHybrid::coeff(int narg, char **arg)
 
 void AngleHybrid::init_style()
 {
-  // error if sub-style is not used
-
-  int used;
-  for (int istyle = 0; istyle < nstyles; ++istyle) {
-    used = 0;
-    for (int itype = 1; itype <= atom->nangletypes; ++itype)
-      if (map[itype] == istyle) used = 1;
-    if (used == 0) error->all(FLERR, "Angle hybrid sub-style {} is not used", keywords[istyle]);
-  }
-
   for (int m = 0; m < nstyles; m++)
     if (styles[m]) styles[m]->init_style();
 }

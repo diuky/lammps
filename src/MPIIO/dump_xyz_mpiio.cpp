@@ -2,7 +2,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -73,12 +73,14 @@ void DumpXYZMPIIO::openfile()
     filecurrent = utils::strdup(utils::star_subst(filecurrent, update->ntimestep, padflag));
     if (maxfiles > 0) {
       if (numfiles < maxfiles) {
-        nameslist[numfiles] = utils::strdup(filecurrent);
+        nameslist[numfiles] = new char[strlen(filecurrent)+1];
+        strcpy(nameslist[numfiles],filecurrent);
         ++numfiles;
       } else {
         remove(nameslist[fileidx]);
         delete[] nameslist[fileidx];
-        nameslist[fileidx] = utils::strdup(filecurrent);
+        nameslist[fileidx] = new char[strlen(filecurrent)+1];
+        strcpy(nameslist[fileidx],filecurrent);
         fileidx = (fileidx + 1) % maxfiles;
       }
     }
@@ -149,7 +151,7 @@ void DumpXYZMPIIO::write()
 
   bigint nheader = ntotal;
 
-  // ensure filewriter proc can receive everyone's info
+  // insure filewriter proc can receive everyone's info
   // limit nmax*size_one to int since used as arg in MPI_Rsend() below
   // pack my data into buf
   // if sorting on IDs also request ID list from pack()

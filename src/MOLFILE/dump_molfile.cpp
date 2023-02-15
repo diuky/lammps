@@ -2,7 +2,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -212,7 +212,7 @@ void DumpMolfile::write()
 
   if (multifile) openfile();
 
-  // ensure proc 0 can receive everyone's info
+  // insure proc 0 can receive everyone's info
   // limit nmax*size_one to int since used as arg in MPI_Rsend() below
   // pack my data into buf
   // if sorting on IDs also request ID list from pack()
@@ -420,7 +420,11 @@ int DumpMolfile::modify_param(int narg, char **arg)
     }
 
     typenames = new char*[ntypes+1];
-    for (int itype = 1; itype <= ntypes; itype++) typenames[itype] = utils::strdup(arg[itype]);
+    for (int itype = 1; itype <= ntypes; itype++) {
+      int n = strlen(arg[itype]) + 1;
+      typenames[itype] = new char[n];
+      strcpy(typenames[itype],arg[itype]);
+    }
 
     return ntypes+1;
   }

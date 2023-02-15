@@ -1,7 +1,8 @@
+// clang-format off
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -15,14 +16,15 @@
 
 #include "atom.h"
 #include "atom_vec.h"
-#include "domain.h"
-#include "error.h"
 #include "force.h"
-#include "memory.h"
-#include "molecule.h"
+#include "domain.h"
+#include "update.h"
 #include "output.h"
 #include "thermo.h"
-#include "update.h"
+#include "molecule.h"
+#include "memory.h"
+#include "error.h"
+
 
 using namespace LAMMPS_NS;
 
@@ -39,8 +41,8 @@ NTopoBondTemplate::NTopoBondTemplate(LAMMPS *lmp) : NTopo(lmp)
 
 void NTopoBondTemplate::build()
 {
-  int i, m, atom1;
-  int imol, iatom;
+  int i,m,atom1;
+  int imol,iatom;
   tagint tagprev;
   int *num_bond;
   tagint **bond_atom;
@@ -69,19 +71,21 @@ void NTopoBondTemplate::build()
 
     for (m = 0; m < num_bond[iatom]; m++) {
       if (bond_type[iatom][m] <= 0) continue;
-      atom1 = atom->map(bond_atom[iatom][m] + tagprev);
+      atom1 = atom->map(bond_atom[iatom][m]+tagprev);
       if (atom1 == -1) {
         nmissing++;
         if (lostbond == Thermo::ERROR)
-          error->one(FLERR, "Bond atoms {} {} missing on proc {} at step {}", tag[i],
-                     bond_atom[iatom][m] + tagprev, me, update->ntimestep);
+          error->one(FLERR,"Bond atoms {} {} missing on "
+                                       "proc {} at step {}",tag[i],
+                                       bond_atom[iatom][m]+tagprev,
+                                       me,update->ntimestep);
         continue;
       }
-      atom1 = domain->closest_image(i, atom1);
+      atom1 = domain->closest_image(i,atom1);
       if (newton_bond || i < atom1) {
         if (nbondlist == maxbond) {
           maxbond += DELTA;
-          memory->grow(bondlist, maxbond, 3, "neigh_topo:bondlist");
+          memory->grow(bondlist,maxbond,3,"neigh_topo:bondlist");
         }
         bondlist[nbondlist][0] = i;
         bondlist[nbondlist][1] = atom1;
@@ -95,6 +99,7 @@ void NTopoBondTemplate::build()
   if (lostbond == Thermo::IGNORE) return;
 
   int all;
-  MPI_Allreduce(&nmissing, &all, 1, MPI_INT, MPI_SUM, world);
-  if (all && (me == 0)) error->warning(FLERR, "Bond atoms missing at step {}", update->ntimestep);
+  MPI_Allreduce(&nmissing,&all,1,MPI_INT,MPI_SUM,world);
+  if (all && (me == 0))
+    error->warning(FLERR,"Bond atoms missing at step {}",update->ntimestep);
 }

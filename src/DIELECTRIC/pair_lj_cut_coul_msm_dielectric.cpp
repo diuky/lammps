@@ -1,7 +1,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/ Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -101,7 +101,7 @@ void PairLJCutCoulMSMDielectric::compute(int eflag, int vflag)
 
   double **x = atom->x;
   double **f = atom->f;
-  double *q = atom->q_scaled;
+  double *q = atom->q;
   double *eps = atom->epsilon;
   double **norm = atom->mu;
   double *curvature = atom->curvature;
@@ -269,17 +269,15 @@ void PairLJCutCoulMSMDielectric::compute(int eflag, int vflag)
 double PairLJCutCoulMSMDielectric::single(int i, int j, int itype, int jtype, double rsq,
                                           double factor_coul, double factor_lj, double &fforce)
 {
-  double r2inv, r6inv, r, egamma, fgamma, ei, ej, prefactor;
+  double r2inv, r6inv, r, egamma, fgamma, prefactor;
   double fraction, table, forcecoul, forcelj, phicoul, philj;
   int itable;
-  double *q = atom->q_scaled;
-  double *eps = atom->epsilon;
 
   r2inv = 1.0 / rsq;
   if (rsq < cut_coulsq) {
     if (!ncoultablebits || rsq <= tabinnersq) {
       r = sqrt(rsq);
-      prefactor = force->qqrd2e * q[i] * q[j] / r;
+      prefactor = force->qqrd2e * atom->q[i] * atom->q[j] / r;
       egamma = 1.0 - (r / cut_coul) * force->kspace->gamma(r / cut_coul);
       fgamma = 1.0 + (rsq / cut_coulsq) * force->kspace->dgamma(r / cut_coul);
       forcecoul = prefactor * fgamma;
@@ -291,10 +289,10 @@ double PairLJCutCoulMSMDielectric::single(int i, int j, int itype, int jtype, do
       itable >>= ncoulshiftbits;
       fraction = (rsq_lookup_single.f - rtable[itable]) * drtable[itable];
       table = ftable[itable] + fraction * dftable[itable];
-      forcecoul = q[i] * q[j] * table;
+      forcecoul = atom->q[i] * atom->q[j] * table;
       if (factor_coul < 1.0) {
         table = ctable[itable] + fraction * dctable[itable];
-        prefactor = q[i] * q[j] * table;
+        prefactor = atom->q[i] * atom->q[j] * table;
         forcecoul -= (1.0 - factor_coul) * prefactor;
       }
     }
@@ -310,20 +308,12 @@ double PairLJCutCoulMSMDielectric::single(int i, int j, int itype, int jtype, do
   fforce = (forcecoul + factor_lj * forcelj) * r2inv;
 
   double eng = 0.0;
-  if (eps[i] == 1)
-    ei = 0;
-  else
-    ei = eps[i];
-  if (eps[j] == 1)
-    ej = 0;
-  else
-    ej = eps[j];
   if (rsq < cut_coulsq) {
     if (!ncoultablebits || rsq <= tabinnersq)
-      phicoul = prefactor * 0.5 * (ei + ej) * egamma;
+      phicoul = prefactor * egamma;
     else {
       table = etable[itable] + fraction * detable[itable];
-      phicoul = q[i] * q[j] * 0.5 * (ei + ej) * table;
+      phicoul = atom->q[i] * atom->q[j] * table;
     }
     if (factor_coul < 1.0) phicoul -= (1.0 - factor_coul) * prefactor;
     eng += phicoul;
@@ -350,7 +340,7 @@ void PairLJCutCoulMSMDielectric::init_style()
 
   cut_coulsq = cut_coul * cut_coul;
 
-  // ensure use of KSpace long-range solver, set g_ewald
+  // insure use of KSpace long-range solver, set g_ewald
 
   if (force->kspace == nullptr) error->all(FLERR, "Pair style requires a KSpace style");
   g_ewald = force->kspace->g_ewald;

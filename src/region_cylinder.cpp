@@ -2,7 +2,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -37,12 +37,11 @@ RegCylinder::RegCylinder(LAMMPS *lmp, int narg, char **arg) :
 
   // check open face settings
 
-  if (openflag)
-    for (int i=3; i<6; i++)
-      if (open_faces[i]) error->all(FLERR,"Illegal region cylinder open face: {}", i+1);
+  if (openflag && (open_faces[3] || open_faces[4] || open_faces[5]))
+    error->all(FLERR,"Invalid region cylinder open setting");
 
-  if (strcmp(arg[2],"x") != 0 && strcmp(arg[2],"y") != 0 && strcmp(arg[2],"z") != 0)
-    error->all(FLERR,"Illegal region cylinder axis: {}", arg[2]);
+  if (strcmp(arg[2],"x") != 0 && strcmp(arg[2],"y") && strcmp(arg[2],"z") != 0)
+    error->all(FLERR,"Illegal region cylinder command");
   axis = arg[2][0];
 
   if (axis == 'x') {
@@ -171,7 +170,7 @@ RegCylinder::RegCylinder(LAMMPS *lmp, int narg, char **arg) :
 
   // error check
 
-  if (radius <= 0.0) error->all(FLERR,"Illegal radius {} in region cylinder command", radius);
+  if (radius <= 0.0) error->all(FLERR,"Illegal region cylinder command");
 
   // extent of cylinder
   // for variable radius, uses initial radius

@@ -1,7 +1,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -276,8 +276,6 @@ void PairHybridScaled::settings(int narg, char **arg)
   // allocate list of sub-styles as big as possibly needed if no extra args
 
   styles = new Pair *[narg];
-  cutmax_style = new double[narg];
-  memset(cutmax_style, 0.0, narg * sizeof(double));
   keywords = new char *[narg];
   multiple = new int[narg];
 

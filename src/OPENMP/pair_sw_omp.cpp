@@ -2,7 +2,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    This software is distributed under the GNU General Public License.
 
@@ -134,16 +134,14 @@ void PairSWOMP::eval(int iifrom, int iito, ThrData * const thr)
       }
 
       jtag = tag[j];
-      if (!skip_threebody_flag) {
-        if (itag > jtag) {
-          if ((itag+jtag) % 2 == 0) continue;
-        } else if (itag < jtag) {
-          if ((itag+jtag) % 2 == 1) continue;
-        } else {
-          if (x[j].z < ztmp) continue;
-          if (x[j].z == ztmp && x[j].y < ytmp) continue;
-          if (x[j].z == ztmp && x[j].y == ytmp && x[j].x < xtmp) continue;
-        }
+      if (itag > jtag) {
+        if ((itag+jtag) % 2 == 0) continue;
+      } else if (itag < jtag) {
+        if ((itag+jtag) % 2 == 1) continue;
+      } else {
+        if (x[j].z < ztmp) continue;
+        if (x[j].z == ztmp && x[j].y < ytmp) continue;
+        if (x[j].z == ztmp && x[j].y == ytmp && x[j].x < xtmp) continue;
       }
 
       twobody(&params[ijparam],rsq,fpair,EFLAG,evdwl);
@@ -158,11 +156,9 @@ void PairSWOMP::eval(int iifrom, int iito, ThrData * const thr)
       if (EVFLAG) ev_tally_thr(this,i,j,nlocal,/* newton_pair */ 1,
                                evdwl,0.0,fpair,delx,dely,delz,thr);
     }
-    if (skip_threebody_flag) {
-      jnumm1 = 0;
-    } else {
-      jnumm1 = numshort - 1;
-    }
+
+    jnumm1 = numshort - 1;
+
     for (jj = 0; jj < jnumm1; jj++) {
       j = neighshort_thr[jj];
       jtype = map[type[j]];

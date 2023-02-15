@@ -1,7 +1,7 @@
 /* -*- c++ -*- ----------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -34,8 +34,7 @@ class BondBPMRotational : public BondBPM {
   void settings(int, char **) override;
   void write_restart(FILE *) override;
   void read_restart(FILE *) override;
-  void write_restart_settings(FILE *) override;
-  void read_restart_settings(FILE *) override;
+  void write_data(FILE *) override;
   double single(int, double, int, int, double &) override;
 
  protected:
@@ -43,9 +42,11 @@ class BondBPMRotational : public BondBPM {
   double *Fcr, *Fcs, *Tct, *Tcb;
   int smooth_flag;
 
-  double elastic_forces(int, int, int, double, double, double, double *, double *, double *,
-                        double *, double *, double *);
-  void damping_forces(int, int, int, double *, double *, double *, double *, double *);
+  double acos_limit(double);
+
+  double elastic_forces(int, int, int, double &, double, double, double, double *, double *,
+                        double *, double *, double *, double *);
+  void damping_forces(int, int, int, double &, double *, double *, double *, double *, double *);
 
   void allocate();
   void store_data();

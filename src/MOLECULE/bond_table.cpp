@@ -1,7 +1,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -312,7 +312,7 @@ void BondTable::read_table(Table *tb, char *file, char *keyword)
 
   char *line = reader.find_section_start(keyword);
 
-  if (!line) error->one(FLERR, "Did not find keyword {} in table file", keyword);
+  if (!line) { error->one(FLERR, "Did not find keyword in table file"); }
 
   // read args on 2nd line of section
   // allocate table arrays for file values
@@ -330,9 +330,6 @@ void BondTable::read_table(Table *tb, char *file, char *keyword)
   reader.skip_line();
   for (int i = 0; i < tb->ninput; i++) {
     line = reader.next_line();
-    if (!line)
-      error->one(FLERR, "Data missing when parsing bond table '{}' line {} of {}.", keyword, i + 1,
-                 tb->ninput);
     try {
       ValueTokenizer values(line);
       values.next_int();
@@ -584,7 +581,7 @@ double BondTable::splint(double *xa, double *ya, double *y2a, int n, double x)
 
 /* ----------------------------------------------------------------------
    calculate potential u and force f at distance x
-   ensure x is between bond min/max, exit with error if not
+   insure x is between bond min/max, exit with error if not
 ------------------------------------------------------------------------- */
 
 void BondTable::uf_lookup(int type, double x, double &u, double &f)

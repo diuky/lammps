@@ -2,7 +2,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -66,16 +66,11 @@ Ewald::Ewald(LAMMPS *lmp) : KSpace(lmp),
   kcount = 0;
 }
 
-/* ---------------------------------------------------------------------- */
-
 void Ewald::settings(int narg, char **arg)
 {
-  if (narg != 1) error->all(FLERR,"Illegal kspace_style {} command", force->kspace_style);
+  if (narg != 1) error->all(FLERR,"Illegal kspace_style ewald command");
 
   accuracy_relative = fabs(utils::numeric(FLERR,arg[0],false,lmp));
-  if (accuracy_relative > 1.0)
-    error->all(FLERR, "Invalid relative accuracy {:g} for kspace_style {}",
-               accuracy_relative, force->kspace_style);
 }
 
 /* ----------------------------------------------------------------------

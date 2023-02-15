@@ -2,7 +2,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -61,6 +61,7 @@ DihedralFourier::~DihedralFourier()
     delete [] shift;
     delete [] cos_shift;
     delete [] sin_shift;
+
   }
 }
 
@@ -331,6 +332,7 @@ void DihedralFourier::coeff(int narg, char **arg)
 
 void DihedralFourier::write_restart(FILE *fp)
 {
+
   fwrite(&nterms[1],sizeof(int),atom->ndihedraltypes,fp);
   for (int i = 1; i <= atom->ndihedraltypes; i++) {
     fwrite(k[i],sizeof(double),nterms[i],fp);

@@ -2,7 +2,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -20,7 +20,6 @@
 #include "modify.h"
 #include "neigh_list_kokkos.h"
 #include "pair_kokkos.h"
-#include "atom_masks.h"
 
 using namespace LAMMPS_NS;
 
@@ -97,12 +96,12 @@ void FixNeighHistoryKokkos<DeviceType>::pre_exchange()
     Kokkos::parallel_for(nlocal_neigh,zero);
 
     h_resize() = 0;
-    Kokkos::deep_copy(d_resize, h_resize);
+    deep_copy(d_resize, h_resize);
 
     FixNeighHistoryKokkosPreExchangeFunctor<DeviceType> f(this);
     Kokkos::parallel_for(nlocal_neigh,f);
 
-    Kokkos::deep_copy(h_resize, d_resize);
+    deep_copy(h_resize, d_resize);
     if (h_resize() > 0) {
       maxpartner += 8;
       memoryKK->grow_kokkos(k_partner,partner,atom->nmax,maxpartner,"neighbor_history:partner");
@@ -171,7 +170,6 @@ template <class DeviceType>
 void FixNeighHistoryKokkos<DeviceType>::post_neighbor()
 {
   tag = atomKK->k_tag.view<DeviceType>();
-  atomKK->sync(execution_space,TAG_MASK);
 
   k_firstflag.sync<DeviceType>();
   k_firstvalue.sync<DeviceType>();

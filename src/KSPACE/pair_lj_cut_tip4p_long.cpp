@@ -2,7 +2,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -19,6 +19,8 @@
 
 #include "pair_lj_cut_tip4p_long.h"
 
+#include <cmath>
+#include <cstring>
 #include "angle.h"
 #include "atom.h"
 #include "bond.h"
@@ -30,8 +32,6 @@
 #include "memory.h"
 #include "error.h"
 
-#include <cmath>
-#include <cstring>
 
 using namespace LAMMPS_NS;
 
@@ -474,17 +474,9 @@ void PairLJCutTIP4PLong::init_style()
 
   // set alpha parameter
 
-  const double theta = force->angle->equilibrium_angle(typeA);
-  const double blen = force->bond->equilibrium_distance(typeB);
+  double theta = force->angle->equilibrium_angle(typeA);
+  double blen = force->bond->equilibrium_distance(typeB);
   alpha = qdist / (cos(0.5*theta) * blen);
-
-  const double mincut = cut_coul + qdist + blen + neighbor->skin;
-  if (comm->get_comm_cutoff() < mincut) {
-    if (comm->me == 0)
-      error->warning(FLERR, "Increasing communication cutoff to {:.8} for TIP4P pair style",
-                     mincut);
-    comm->cutghostuser = mincut;
-  }
 }
 
 /* ----------------------------------------------------------------------

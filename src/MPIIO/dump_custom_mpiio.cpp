@@ -1,7 +1,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -74,12 +74,14 @@ void DumpCustomMPIIO::openfile()
     filecurrent = utils::strdup(utils::star_subst(filecurrent, update->ntimestep, padflag));
     if (maxfiles > 0) {
       if (numfiles < maxfiles) {
-        nameslist[numfiles] = utils::strdup(filecurrent);
+        nameslist[numfiles] = new char[strlen(filecurrent) + 1];
+        strcpy(nameslist[numfiles], filecurrent);
         ++numfiles;
       } else {
         remove(nameslist[fileidx]);
         delete[] nameslist[fileidx];
-        nameslist[fileidx] = utils::strdup(filecurrent);
+        nameslist[fileidx] = new char[strlen(filecurrent) + 1];
+        strcpy(nameslist[fileidx], filecurrent);
         fileidx = (fileidx + 1) % maxfiles;
       }
     }
@@ -154,7 +156,7 @@ void DumpCustomMPIIO::write()
 
   bigint nheader = ntotal;
 
-  // ensure filewriter proc can receive everyone's info
+  // insure filewriter proc can receive everyone's info
   // limit nmax*size_one to int since used as arg in MPI_Rsend() below
   // pack my data into buf
   // if sorting on IDs also request ID list from pack()
@@ -207,7 +209,7 @@ void DumpCustomMPIIO::init_style()
   delete[] columns;
   std::string combined;
   int icol = 0;
-  for (const auto &item : utils::split_words(columns_default)) {
+  for (auto item : utils::split_words(columns_default)) {
     if (combined.size()) combined += " ";
     if (keyword_user[icol].size())
       combined += keyword_user[icol];
@@ -231,12 +233,10 @@ void DumpCustomMPIIO::init_style()
   // lo priority = line, medium priority = int/float, hi priority = column
 
   auto words = utils::split_words(format);
-  if ((int) words.size() < nfield)
-    error->all(FLERR, "Dump_modify format line is too short: {}", format);
+  if ((int) words.size() < nfield) error->all(FLERR, "Dump_modify format line is too short");
 
   int i = 0;
   for (const auto &word : words) {
-    if (i >= nfield) break;
     delete[] vformat[i];
 
     if (format_column_user[i])

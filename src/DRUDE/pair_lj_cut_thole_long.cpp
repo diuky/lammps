@@ -2,7 +2,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -364,7 +364,7 @@ void PairLJCutTholeLong::init_style()
     if (strcmp(modify->fix[ifix]->style,"drude") == 0) break;
   if (ifix == modify->nfix)
       error->all(FLERR, "Pair style lj/cut/thole/long requires fix drude");
-  fix_drude = dynamic_cast<FixDrude *>(modify->fix[ifix]);
+  fix_drude = dynamic_cast<FixDrude *>( modify->fix[ifix]);
 
   neighbor->add_request(this);
 
@@ -374,7 +374,7 @@ void PairLJCutTholeLong::init_style()
 
   cut_respa = nullptr;
 
-  // ensure use of KSpace long-range solver, set g_ewald
+  // insure use of KSpace long-range solver, set g_ewald
 
   if (force->kspace == nullptr)
     error->all(FLERR,"Pair style requires a KSpace style");

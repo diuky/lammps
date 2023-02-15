@@ -2,7 +2,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -84,24 +84,23 @@ RegPrism::RegPrism(LAMMPS *lmp, int narg, char **arg) : Region(lmp, narg, arg)
   // prism cannot be 0 thickness in any dim, else inverse blows up
   // non-zero tilt values cannot be used if either dim is INF on both ends
 
-  if (xlo >= xhi) error->all(FLERR,"Illegal region prism xlo: {} >= xhi: {}", xlo, xhi);
-  if (ylo >= yhi) error->all(FLERR,"Illegal region prism ylo: {} >= yhi: {}", ylo, yhi);
-  if (zlo >= zhi) error->all(FLERR,"Illegal region prism zlo: {} >= zhi: {}", zlo ,zhi);
+  if (xlo >= xhi || ylo >= yhi || zlo >= zhi)
+    error->all(FLERR,"Illegal region prism command");
 
   if (xy != 0.0 && xlo == -BIG && xhi == BIG)
-    error->all(FLERR,"Illegal region prism non-zero xy tilt with infinite x size");
+    error->all(FLERR,"Illegal region prism command");
   if (xy != 0.0 && ylo == -BIG && yhi == BIG)
-    error->all(FLERR,"Illegal region prism non-zero xy tilt with infinite y size");
+    error->all(FLERR,"Illegal region prism command");
 
   if (xz != 0.0 && xlo == -BIG && xhi == BIG)
-    error->all(FLERR,"Illegal region prism non-zero xz tilt with infinite x size");
+    error->all(FLERR,"Illegal region prism command");
   if (xz != 0.0 && zlo == -BIG && zhi == BIG)
-    error->all(FLERR,"Illegal region prism non-zero xz tilt with infinite z size");
+    error->all(FLERR,"Illegal region prism command");
 
   if (yz != 0.0 && ylo == -BIG && yhi == BIG)
-    error->all(FLERR,"Illegal region prism non-zero yz tilt with infinite y size");
+    error->all(FLERR,"Illegal region prism command");
   if (yz != 0.0 && zlo == -BIG && zhi == BIG)
-    error->all(FLERR,"Illegal region prism non-zero yz tilt with infinite z size");
+    error->all(FLERR,"Illegal region prism command");
 
   // extent of prism
 

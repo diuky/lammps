@@ -2,7 +2,7 @@
 /* -------------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -1078,7 +1078,7 @@ void ThrOMP::ev_tally_thr(Angle * const angle, const int i, const int j, const i
 }
 
 /* ----------------------------------------------------------------------
-   tally energy and virial from 1-3 repulsion of SPICA angle into accumulators
+   tally energy and virial from 1-3 repulsion of SDK angle into accumulators
 ------------------------------------------------------------------------- */
 
 void ThrOMP::ev_tally13_thr(Angle * const angle, const int i1, const int i3,

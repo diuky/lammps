@@ -2,7 +2,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -54,11 +54,11 @@ using namespace MathConst;
 using namespace MathSpecial;
 
 static const char cite_fix_charge_regulation[] =
-  "fix charge/regulation: doi:10.1063/5.0066432\n\n"
+  "fix charge/regulation: \n\n"
   "@Article{Curk22,\n"
-  " author = {T. Curk and J. Yuan and E. Luijten},\n"
-  " title = {Accelerated Simulation Method for Charge Regulation Effects},\n"
-  " journal = {Journal of Chemical Physics},\n"
+  " author = {T. Curk, J. Yuan, E. Luijten},\n"
+  " title = {Accelerated simulation method for charge regulation effects},\n"
+  " journal = {The Journal of Chemical Physics},\n"
   " year = 2022,\n"
   " volume = 156\n"
   "}\n\n";
@@ -140,8 +140,6 @@ FixChargeRegulation::FixChargeRegulation(LAMMPS *lmp, int narg, char **arg) :
   nsalt_successes = 0;
 }
 
-/* ---------------------------------------------------------------------- */
-
 FixChargeRegulation::~FixChargeRegulation() {
 
   memory->destroy(ptype_ID);
@@ -155,22 +153,13 @@ FixChargeRegulation::~FixChargeRegulation() {
     int igroupall = group->find("all");
     neighbor->exclusion_group_group_delete(exclusion_group, igroupall);
   }
-
-  if (groupstrings) {
-    for (int i = 0; i < ngroups; ++i) delete[] groupstrings[i];
-    memory->destroy(groupstrings);
-  }
 }
-
-/* ---------------------------------------------------------------------- */
 
 int FixChargeRegulation::setmask() {
   int mask = 0;
   mask |= PRE_EXCHANGE;
   return mask;
 }
-
-/* ---------------------------------------------------------------------- */
 
 void FixChargeRegulation::init() {
 
@@ -256,8 +245,6 @@ void FixChargeRegulation::init() {
     groupbitall |= group->bitmask[jgroup];
   }
 }
-
-/* ---------------------------------------------------------------------- */
 
 void FixChargeRegulation::pre_exchange() {
 
@@ -385,15 +372,16 @@ void FixChargeRegulation::pre_exchange() {
   next_reneighbor = update->ntimestep + nevery;
 }
 
-/* ---------------------------------------------------------------------- */
-
 void FixChargeRegulation::forward_acid() {
 
   double energy_before = energy_stored;
   double factor;
-  double dummyp[3] = {0.0, 0.0, 0.0};
-  double pos[3] = {0.0, 0.0, 0.0}; // acid/base particle position
-  double pos_all[3] = {0.0, 0.0, 0.0};
+  double dummyp[3];
+  double pos[3];
+  pos[0] = 0;
+  pos[1] = 0;
+  pos[2] = 0; // acid/base particle position
+  double pos_all[3];
   int m1 = -1, m2 = -1;
 
   m1 = get_random_particle(acid_type, 0, 0, dummyp);
@@ -444,16 +432,17 @@ void FixChargeRegulation::forward_acid() {
   }
 }
 
-/* ---------------------------------------------------------------------- */
-
 void FixChargeRegulation::backward_acid() {
 
   double energy_before = energy_stored;
   double factor;
   int mask_tmp;
-  double dummyp[3] = {0.0, 0.0, 0.0};
-  double pos[3] = {0.0, 0.0, 0.0}; // acid/base particle position
-  double pos_all[3] = {0.0, 0.0, 0.0};
+  double dummyp[3];
+  double pos[3];
+  pos[0] = 0;
+  pos[1] = 0;
+  pos[2] = 0; // acid/base particle position
+  double pos_all[3];
   int m1 = -1, m2 = -1;
 
   m1 = get_random_particle(acid_type, -1, 0, dummyp);
@@ -521,15 +510,16 @@ void FixChargeRegulation::backward_acid() {
   }
 }
 
-/* ---------------------------------------------------------------------- */
-
 void FixChargeRegulation::forward_base() {
 
   double energy_before = energy_stored;
   double factor;
-  double dummyp[3] = {0.0, 0.0, 0.0};
-  double pos[3] = {0.0, 0.0, 0.0}; // acid/base particle position
-  double pos_all[3] = {0.0, 0.0, 0.0};
+  double dummyp[3];
+  double pos[3];
+  pos[0] = 0;
+  pos[1] = 0;
+  pos[2] = 0; // acid/base particle position
+  double pos_all[3];
   int m1 = -1, m2 = -1;
 
   m1 = get_random_particle(base_type, 0, 0, dummyp);
@@ -580,16 +570,17 @@ void FixChargeRegulation::forward_base() {
   }
 }
 
-/* ---------------------------------------------------------------------- */
-
 void FixChargeRegulation::backward_base() {
 
   double energy_before = energy_stored;
   double factor;
-  double dummyp[3] = {0.0, 0.0, 0.0};
-  double pos[3] = {0.0, 0.0, 0.0}; // acid/base particle position
-  double pos_all[3] = {0.0, 0.0, 0.0};
+  double dummyp[3];
   int mask_tmp;
+  double pos[3];
+  pos[0] = 0;
+  pos[1] = 0;
+  pos[2] = 0; // acid/base particle position
+  double pos_all[3];
   int m1 = -1, m2 = -1;
 
   m1 = get_random_particle(base_type, 1, 0, dummyp);
@@ -656,13 +647,11 @@ void FixChargeRegulation::backward_base() {
   }
 }
 
-/* ---------------------------------------------------------------------- */
-
 void FixChargeRegulation::forward_ions() {
 
   double energy_before = energy_stored;
   double factor;
-  double dummyp[3] = {0.0, 0.0, 0.0};
+  double dummyp[3];
   int m1 = -1, m2 = -1;
   factor = volume_rx * volume_rx * c10pI_plus * c10pI_minus /
            ((1 + ncation) * (1 + nanion));
@@ -693,14 +682,13 @@ void FixChargeRegulation::forward_ions() {
   }
 }
 
-/* ---------------------------------------------------------------------- */
 
 void FixChargeRegulation::backward_ions() {
 
   double energy_before = energy_stored;
   double factor;
   int mask1_tmp = 0, mask2_tmp = 0;
-  double dummyp[3] = {0.0, 0.0, 0.0};
+  double dummyp[3];
   int m1 = -1, m2 = -1;
 
   m1 = get_random_particle(cation_type, +1, 0, dummyp);
@@ -776,13 +764,11 @@ void FixChargeRegulation::backward_ions() {
   }
 }
 
-/* ---------------------------------------------------------------------- */
-
 void FixChargeRegulation::forward_ions_multival() {
 
   double energy_before = energy_stored;
   double factor = 1;
-  double dummyp[3] = {0.0, 0.0, 0.0};
+  double dummyp[3];
 
   // particle ID array for all ions to be inserted
   auto mm = std::unique_ptr<int[]>(new int[salt_charge_ratio + 1]);
@@ -836,13 +822,11 @@ void FixChargeRegulation::forward_ions_multival() {
   }
 }
 
-/* ---------------------------------------------------------------------- */
-
 void FixChargeRegulation::backward_ions_multival() {
 
   double energy_before = energy_stored;
   double factor = 1;
-  double dummyp[3] = {0.0, 0.0, 0.0}; // dummy particle
+  double dummyp[3];  // dummy particle
   // particle ID array for all deleted ions
   auto mm = std::unique_ptr<int[]>(new int[salt_charge_ratio + 1]);
   // charge array for all deleted ions
@@ -959,8 +943,6 @@ void FixChargeRegulation::backward_ions_multival() {
   }
 }
 
-/* ---------------------------------------------------------------------- */
-
 int FixChargeRegulation::insert_particle(int ptype, double charge, double rd, double *target) {
 
   // insert a particle of type (ptype) with charge (charge) within distance (rd) of (target)
@@ -1031,8 +1013,6 @@ int FixChargeRegulation::insert_particle(int ptype, double charge, double rd, do
   return m;
 }
 
-/* ---------------------------------------------------------------------- */
-
 int FixChargeRegulation::get_random_particle(int ptype, double charge, double rd, double *target) {
 
   // returns a randomly chosen particle of type (ptype) with charge (charge)
@@ -1097,8 +1077,6 @@ int FixChargeRegulation::get_random_particle(int ptype, double charge, double rd
   return -1;
 }
 
-/* ---------------------------------------------------------------------- */
-
 double FixChargeRegulation::energy_full() {
   if (triclinic) domain->x2lamda(atom->nlocal);
   domain->pbc();
@@ -1158,8 +1136,6 @@ double FixChargeRegulation::energy_full() {
   return total_energy;
 }
 
-/* ---------------------------------------------------------------------- */
-
 int FixChargeRegulation::particle_number_xrd(int ptype, double charge, double rd, double *target) {
 
   int count = 0;
@@ -1189,8 +1165,6 @@ int FixChargeRegulation::particle_number_xrd(int ptype, double charge, double rd
   return count_sum;
 }
 
-/* ---------------------------------------------------------------------- */
-
 int FixChargeRegulation::particle_number(int ptype, double charge) {
 
   int count = 0;
@@ -1202,8 +1176,6 @@ int FixChargeRegulation::particle_number(int ptype, double charge) {
   MPI_Allreduce(&count, &count_sum, 1, MPI_INT, MPI_SUM, world);
   return count_sum;
 }
-
-/* ---------------------------------------------------------------------- */
 
 double FixChargeRegulation::compute_vector(int n) {
   if (n == 0) {
@@ -1281,8 +1253,6 @@ void FixChargeRegulation::restart(char *buf)
     error->all(FLERR,"Must not reset timestep when restarting fix gcmc");
 }
 
-/* ---------------------------------------------------------------------- */
-
 void FixChargeRegulation::setThermoTemperaturePointer() {
   int ifix = -1;
   ifix = modify->find_fix(idftemp);
@@ -1295,8 +1265,6 @@ void FixChargeRegulation::setThermoTemperaturePointer() {
   target_temperature_tcp = (double *) temperature_fix->extract("t_target", dim);
 
 }
-
-/* ---------------------------------------------------------------------- */
 
 void FixChargeRegulation::assign_tags() {
   // Assign tags to ions with zero tags

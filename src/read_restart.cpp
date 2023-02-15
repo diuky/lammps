@@ -2,7 +2,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -27,7 +27,6 @@
 #include "group.h"
 #include "improper.h"
 #include "irregular.h"
-#include "label_map.h"
 #include "memory.h"
 #include "modify.h"
 #include "mpiio.h"
@@ -451,7 +450,7 @@ void ReadRestart::command(int narg, char **arg)
     if (nextra) {
       memory->destroy(atom->extra);
       memory->create(atom->extra,atom->nmax,nextra,"atom:extra");
-      auto fix = dynamic_cast<FixReadRestart *>(modify->get_fix_by_id("_read_restart"));
+      auto fix = dynamic_cast<FixReadRestart *>( modify->get_fix_by_id("_read_restart"));
       int *count = fix->count;
       double **extra = fix->extra;
       double **atom_extra = atom->extra;
@@ -599,8 +598,6 @@ void ReadRestart::header()
 
     if (flag == VERSION) {
       char *version = read_string();
-      lmp->restart_ver = utils::date2num(version);
-
       if (me == 0)
         utils::logmesg(lmp,"  restart file = {}, LAMMPS = {}\n", version, lmp->version);
       delete[] version;
@@ -769,7 +766,7 @@ void ReadRestart::header()
         argcopy[i] = read_string();
       atom->create_avec(style,nargcopy,argcopy,1);
       if (comm->me ==0)
-        utils::logmesg(lmp,"  restoring atom style {} from restart\n",atom->atom_style);
+        utils::logmesg(lmp,"  restoring atom style {} from restart\n",style);
       for (int i = 0; i < nargcopy; i++) delete[] argcopy[i];
       delete[] argcopy;
       delete[] style;
@@ -895,11 +892,6 @@ void ReadRestart::type_arrays()
       read_double_vec(atom->ntypes,&mass[1]);
       atom->set_mass(mass);
       delete[] mass;
-
-    } else if (flag == LABELMAP) {
-      read_int();
-      atom->add_label_map();
-      atom->lmap->read_restart(fp);
 
     } else error->all(FLERR,
                       "Invalid flag in type arrays section of restart file");

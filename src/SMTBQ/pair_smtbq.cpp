@@ -2,7 +2,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -315,8 +315,8 @@ double PairSMTBQ::init_one(int i, int j)
 
 void PairSMTBQ::read_file(char *file)
 {
-  constexpr int VERBOSE = 0;
-  int num_atom_types,i,k,m,test,j;
+  int num_atom_types,i,k,m,test,j,verbose;
+
   if (params) {
     for (i = 0; i < atom->ntypes ; i++ ) delete[] params[i].nom;
     for (i = 1; i <= maxintparam ; i++ ) delete[] intparams[i].typepot;
@@ -335,6 +335,9 @@ void PairSMTBQ::read_file(char *file)
   nparams = 0;
   maxparam = 0;
   maxintparam = 0;
+
+  verbose = 1;
+  verbose = 0;
 
   coordOxBB = 0.0;
   coordOxBulk = 0.0;
@@ -370,7 +373,7 @@ void PairSMTBQ::read_file(char *file)
     auto values = ValueTokenizer(line, SMTBQ_SEPARATORS);
     auto label = values.next_string();
     num_atom_types = values.next_int();
-    if ((comm->me == 0) && VERBOSE) utils::logmesg(lmp," {} {}\n",label,num_atom_types);
+    if ((comm->me == 0) && verbose) utils::logmesg(lmp," {} {}\n",label,num_atom_types);
 
     memory->create(intype,num_atom_types,num_atom_types,"pair:intype");
     m = 0;
@@ -378,7 +381,7 @@ void PairSMTBQ::read_file(char *file)
       for (j = 0; j < num_atom_types; j++) {
         if (j < i) { intype[i][j] = intype[j][i]; }
         else       { intype[i][j] = 0; m = m + 1; }
-        if ((comm->me == 0) && VERBOSE)
+        if ((comm->me == 0)  && verbose)
           utils::logmesg(lmp, "i {}, j {}, intype {} - nb pair {}\n",i,j,intype[i][j],m);
       }
     }
@@ -413,7 +416,7 @@ void PairSMTBQ::read_file(char *file)
       line = reader.next_line();
       values = ValueTokenizer(line, SMTBQ_SEPARATORS);
       label = values.next_string();
-      if ((comm->me == 0) && VERBOSE) utils::logmesg(lmp, label+"\n");
+      if ((comm->me == 0) && verbose) utils::logmesg(lmp, label+"\n");
 
       // Line 2 - Al
 
@@ -422,7 +425,7 @@ void PairSMTBQ::read_file(char *file)
       label = values.next_string();
       params[i].nom = utils::strdup(values.next_string());
       params[i].sto = values.next_double();
-      if ((comm->me == 0) && VERBOSE)
+      if ((comm->me == 0) && verbose)
         utils::logmesg(lmp, " {} {} {}\n", label,params[i].nom,params[i].sto);
 
       //Line 3 - Charges
@@ -432,7 +435,7 @@ void PairSMTBQ::read_file(char *file)
       label = values.next_string();
       params[i].qform = values.next_double();
       params[i].masse = values.next_double();
-      if ((comm->me == 0) && VERBOSE)
+      if ((comm->me == 0) && verbose)
         utils::logmesg(lmp, " {} {} {}\n", label,params[i].qform,params[i].masse);
 
       // Line 4 - Parametres QEq
@@ -446,11 +449,11 @@ void PairSMTBQ::read_file(char *file)
 
       if (strcmp(params[i].nom, "O") !=0) {
         params[i].R = values.next_double();
-        if ((comm->me == 0) && VERBOSE)
+        if ((comm->me == 0) && verbose)
           utils::logmesg(lmp, " {} {} {} {} {}\n",label,params[i].ne,params[i].chi,
                          params[i].dj,params[i].R);
       } else {
-        if ((comm->me == 0) && VERBOSE)
+        if ((comm->me == 0) && verbose)
           utils::logmesg(lmp," {} {} {} {}\n",label,params[i].ne,params[i].chi,params[i].dj);
       }
 
@@ -467,7 +470,7 @@ void PairSMTBQ::read_file(char *file)
         ROxBB = values.next_double();
         params[i].R = values.next_double();
         ROxSurf = values.next_double();
-        if ((comm->me == 0) && VERBOSE)
+        if ((comm->me == 0) && verbose)
           utils::logmesg(lmp, " {} {} {} {} {} {} {}\n",
                          label,coordOxBB,coordOxBulk,coordOxSurf,ROxBB,params[i].R,ROxSurf);
       }
@@ -478,11 +481,11 @@ void PairSMTBQ::read_file(char *file)
       values = ValueTokenizer(line, SMTBQ_SEPARATORS);
       label = values.next_string();
       params[i].n0 = values.next_double();
-      if ((comm->me == 0) && VERBOSE) utils::logmesg(lmp, " {} {}\n",label,params[i].n0);
+      if ((comm->me == 0) && verbose) utils::logmesg(lmp, " {} {}\n",label,params[i].n0);
 
       // Parametres de Slater
       params[i].dzeta = (2.0*params[i].ne + 1.0)/(4.0*params[i].R);
-      if ((comm->me == 0) && VERBOSE)
+      if ((comm->me == 0) && verbose)
         utils::logmesg(lmp, " Parametre dzeta (Slater) : {}\n",params[i].dzeta);
 
     } // Fin elements i
@@ -502,7 +505,7 @@ void PairSMTBQ::read_file(char *file)
       line = reader.next_line();
       values = ValueTokenizer(line, SMTBQ_SEPARATORS);
       label = values.next_string();
-      if ((comm->me == 0) && VERBOSE) utils::logmesg(lmp, label+"\n");
+      if ((comm->me == 0) && verbose) utils::logmesg(lmp, label+"\n");
 
       // Lecture des protagonistes
       test = 0;
@@ -521,7 +524,7 @@ void PairSMTBQ::read_file(char *file)
       }
 
       if (test == 1) {
-        if ((comm->me == 0) && VERBOSE)
+        if ((comm->me == 0) && verbose)
           utils::logmesg(lmp, "========== fin des interaction ==========\n");
         break ;
       }
@@ -530,7 +533,7 @@ void PairSMTBQ::read_file(char *file)
       intype[j][i] = intype[i][j];
       intparams[m].typepot = utils::strdup(words[3]);
       intparams[m].intsm = 0;
-      if ((comm->me == 0) && VERBOSE)
+      if ((comm->me == 0) && verbose)
         utils::logmesg(lmp," itype {} jtype {} - intype {}\n",i,j,intype[i][j]);
 
       if (strcmp(intparams[m].typepot,"second_moment") != 0 &&
@@ -551,7 +554,7 @@ void PairSMTBQ::read_file(char *file)
           error->all(FLERR,"Mode of second moment interaction must be 'oxide' or 'metal'");
         }
 
-        if ((comm->me == 0) && VERBOSE)
+        if ((comm->me == 0) && verbose)
           utils::logmesg(lmp, " {} {} {} {} {}\n",words[0],words[1],words[2],
                          intparams[m].typepot,intparams[m].mode);
 
@@ -562,7 +565,7 @@ void PairSMTBQ::read_file(char *file)
         intparams[m].p = values.next_double();
         intparams[m].ksi = values.next_double();
         intparams[m].q = values.next_double();
-        if ((comm->me == 0) && VERBOSE)
+        if ((comm->me == 0) && verbose)
           utils::logmesg(lmp, " {} {} {} {} {}\n",label,intparams[m].a,
                          intparams[m].p,intparams[m].ksi,intparams[m].q);
 
@@ -576,13 +579,13 @@ void PairSMTBQ::read_file(char *file)
         intparams[m].r0 = values.next_double();
 
 
-        if ((comm->me == 0) && VERBOSE)
+        if ((comm->me == 0) && verbose)
           utils::logmesg(lmp, " {} {} {} {}\n",label, intparams[m].dc1,
                          intparams[m].dc2,intparams[m].r0);
 
       } else if (strcmp(intparams[m].typepot,"buck") == 0) {
 
-        if ((comm->me == 0) && VERBOSE)
+        if ((comm->me == 0) && verbose)
           utils::logmesg(lmp, " {} {} {} {}\n",words[0],words[1],words[2],intparams[m].typepot);
 
         line = reader.next_line();
@@ -591,12 +594,12 @@ void PairSMTBQ::read_file(char *file)
         intparams[m].abuck = values.next_double();
         intparams[m].rhobuck = values.next_double();
 
-        if ((comm->me == 0) && VERBOSE)
+        if ((comm->me == 0) && verbose)
           utils::logmesg(lmp, " {} {} {}\n",label,intparams[m].abuck,intparams[m].rhobuck);
 
       } else if (strcmp(intparams[m].typepot,"buckPlusAttr") == 0) {
 
-        if ((comm->me == 0) && VERBOSE)
+        if ((comm->me == 0) && verbose)
           utils::logmesg(lmp, " {} {} {} {}\n",words[0],words[1],words[2],intparams[m].typepot);
 
         line = reader.next_line();
@@ -605,7 +608,7 @@ void PairSMTBQ::read_file(char *file)
         intparams[m].abuck = values.next_double();
         intparams[m].rhobuck = values.next_double();
 
-        if ((comm->me == 0) && VERBOSE)
+        if ((comm->me == 0) && verbose)
           utils::logmesg(lmp, " {} {} {}\n",label,intparams[m].abuck,intparams[m].rhobuck);
 
         line = reader.next_line();
@@ -615,12 +618,12 @@ void PairSMTBQ::read_file(char *file)
         intparams[m].bOO = values.next_double();
         intparams[m].r1OO = values.next_double();
         intparams[m].r2OO = values.next_double();
-        if ((comm->me == 0) && VERBOSE)
+        if ((comm->me == 0) && verbose)
           utils::logmesg(lmp, " {} {} {} {} {}\n",label,intparams[m].aOO,
                          intparams[m].bOO,intparams[m].r1OO,intparams[m].r2OO);
 
       }
-      if ((comm->me == 0) && VERBOSE)
+      if ((comm->me == 0) && verbose)
         utils::logmesg(lmp, " intsm {} \n",intparams[m].intsm);
 
     } // for maxintparam
@@ -631,7 +634,7 @@ void PairSMTBQ::read_file(char *file)
     // Ligne 9 - rayon de coupure Electrostatique
     if (test == 0) {
       line = reader.next_line();
-      if ((comm->me == 0) && VERBOSE)
+      if ((comm->me == 0) && verbose)
         utils::logmesg(lmp, line);
       line = reader.next_line();
     }
@@ -641,7 +644,7 @@ void PairSMTBQ::read_file(char *file)
     cutmax = values.next_double();
     for (i=0 ; i<num_atom_types; i++) { params[i].cutsq = cutmax; }
 
-    if ((comm->me == 0) && VERBOSE)
+    if ((comm->me == 0) && verbose)
       utils::logmesg(lmp, " {} {} \n",label,cutmax);
 
     // Ligne 9 - parametre pour les tableaux
@@ -650,35 +653,35 @@ void PairSMTBQ::read_file(char *file)
     label = values.next_string();
     rmin = values.next_double();
     dr = values.next_double();
-    if ((comm->me == 0) && VERBOSE)
+    if ((comm->me == 0) && verbose)
       utils::logmesg(lmp, " {} {} {}\n",label, rmin, dr);
 
     kmax = int(cutmax*cutmax/(2.0*dr*rmin));
     ds = cutmax*cutmax/static_cast<double>(kmax) ;
-    if ((comm->me == 0) && VERBOSE)
+    if ((comm->me == 0) && verbose)
       utils::logmesg(lmp, " kmax {} et ds {}\n",kmax,ds);
 
     /* ======================================================== */
-    if ((comm->me == 0) && VERBOSE)
+    if ((comm->me == 0) && verbose)
       utils::logmesg(lmp, reader.next_line());
     else reader.skip_line();
 
     values = reader.next_values(0, SMTBQ_SEPARATORS);
     label = values.next_string();
     Qstep = values.next_bigint();
-    if ((comm->me == 0) && VERBOSE)
+    if ((comm->me == 0) && verbose)
       utils::logmesg(lmp, " {} {}\n",label, Qstep);
 
     values = reader.next_values(0, SMTBQ_SEPARATORS);
     label = values.next_string();
     loopmax = values.next_int();
     precision = values.next_double();
-    if ((comm->me == 0) && VERBOSE)
+    if ((comm->me == 0) && verbose)
       utils::logmesg(lmp, " {} {} {}\n",label, loopmax, precision);
 
     /* Param de coordination ============================================= */
 
-    if ((comm->me == 0) && VERBOSE)
+    if ((comm->me == 0) && verbose)
       utils::logmesg(lmp, reader.next_values(0, SMTBQ_SEPARATORS).next_string()+"\n");
     else reader.skip_line();
 
@@ -686,12 +689,12 @@ void PairSMTBQ::read_file(char *file)
     label = values.next_string();
     r1Coord = values.next_double();
     r2Coord = values.next_double();
-    if ((comm->me == 0) && VERBOSE)
+    if ((comm->me == 0) && verbose)
       utils::logmesg(lmp, " {} {} {}\n",label,r1Coord,r2Coord);
 
     /* Mode for QInit============================================= */
 
-    if ((comm->me == 0) && VERBOSE)
+    if ((comm->me == 0) && verbose)
       utils::logmesg(lmp, reader.next_values(0, SMTBQ_SEPARATORS).next_string()+"\n");
     else reader.skip_line();
 
@@ -700,31 +703,31 @@ void PairSMTBQ::read_file(char *file)
     QInitMode = utils::strdup(values.next_string());
     if (strcmp(QInitMode,"true") == 0) QOxInit= values.next_double();
     else QOxInit = 0.0;
-    if ((comm->me == 0) && VERBOSE)
+    if ((comm->me == 0) && verbose)
       utils::logmesg(lmp, " {} {} {}\n",label,QInitMode,QOxInit);
 
     /* Mode for QEq============================================= */
 
-    if ((comm->me == 0) && VERBOSE)
+    if ((comm->me == 0) && verbose)
       utils::logmesg(lmp, reader.next_values(0, SMTBQ_SEPARATORS).next_string()+"\n");
     else reader.skip_line();
 
     values = reader.next_values(0, SMTBQ_SEPARATORS);
     label = values.next_string();
     QEqMode = utils::strdup(values.next_string());
-    if ((comm->me == 0) && VERBOSE)
+    if ((comm->me == 0) && verbose)
       utils::logmesg(lmp, " {} {}\n",label,QEqMode);
 
     if (strcmp(QEqMode,"BulkFromSlab") == 0) {
       zlim1QEq = values.next_double();
       zlim2QEq = values.next_double();
-      if ((comm->me == 0) && VERBOSE)
+      if ((comm->me == 0) && verbose)
         utils::logmesg(lmp, " {} {} {}\n",label,zlim1QEq,zlim2QEq);
 
     } else if (strcmp(QEqMode,"Surface") == 0) {
 
       zlim1QEq = values.next_double();
-      if ((comm->me == 0) && VERBOSE)
+      if ((comm->me == 0) && verbose)
         utils::logmesg(lmp, " {} {}\n",label,zlim1QEq);
 
     } else if (strcmp(QEqMode,"QEqAll") != 0         &&
@@ -740,14 +743,14 @@ void PairSMTBQ::read_file(char *file)
 
     /* Bavard============================================= */
 
-    if ((comm->me == 0) && VERBOSE)
+    if ((comm->me == 0) && verbose)
       utils::logmesg(lmp, reader.next_values(0, SMTBQ_SEPARATORS).next_string()+"\n");
     else reader.skip_line();
 
     values = reader.next_values(0, SMTBQ_SEPARATORS);
     label = values.next_string();
     Bavard = utils::strdup(values.next_string());
-    if ((comm->me == 0) && VERBOSE)
+    if ((comm->me == 0) && verbose)
       utils::logmesg(lmp, " {} {}\n",label,Bavard);
 
     // ---------------------------------------
@@ -758,7 +761,7 @@ void PairSMTBQ::read_file(char *file)
     writeenerg = utils::strdup(values.next_string());
     if (strcmp(writeenerg,"true") == 0) Nevery = values.next_double();
     else Nevery = 0.0;
-    if ((comm->me == 0) && VERBOSE)
+    if ((comm->me == 0) && verbose)
       utils::logmesg(lmp, " {} {} {}\n",label,writeenerg,Nevery);
 
     // ---------------------------------------
@@ -769,7 +772,7 @@ void PairSMTBQ::read_file(char *file)
     writepot = utils::strdup(values.next_string());
     if (strcmp(writepot,"true") == 0) Neverypot = values.next_double();
     else Neverypot = 0.0;
-    if ((comm->me == 0) && VERBOSE)
+    if ((comm->me == 0) && verbose)
       utils::logmesg(lmp, " {} {} {}\n",label,writepot,Neverypot);
 
     // === Rayon de coupure premier voisins : 1,2*r0
@@ -781,7 +784,7 @@ void PairSMTBQ::read_file(char *file)
 
         intparams[m].neig_cut = 1.2*intparams[m].r0;
         if (strcmp(intparams[m].typepot,"second_moment") == 0 )
-          if ((comm->me == 0) && VERBOSE)
+          if ((comm->me == 0) && verbose)
             utils::logmesg(lmp, " Rc 1er voisin, typepot {} -> {} Ang\n",
                            intparams[m].typepot,intparams[m].neig_cut);
       }
@@ -791,7 +794,7 @@ void PairSMTBQ::read_file(char *file)
     for (i=1,ncov=params[0].sto*params[0].n0; i < nparams; ++i)
       ncov = min(ncov,(params[1].sto)*(params[1].n0));
 
-    if ((comm->me == 0) && VERBOSE)
+    if ((comm->me == 0) && verbose)
       utils::logmesg(lmp, " Parametre ncov = {}\n"
                      " ********************************************* \n",ncov);
   } catch (std::exception &e) {
@@ -1220,8 +1223,7 @@ double PairSMTBQ::qfo_self(Param *param, double qi)
 
 void PairSMTBQ::tabqeq()
 {
-#define VERBOSE 0
-  int i,j,k,m;
+  int i,j,k,m,verbose;
   int nntype;
   double rc,s,r;
   double alf;
@@ -1232,17 +1234,23 @@ void PairSMTBQ::tabqeq()
   double aCoeff,bCoeff,rcoupe,nang;
 
   int n = atom->ntypes;
+  int nlocal = atom->nlocal;
+  int nghost = atom->nghost;
   nmax = atom->nmax;
+
+  verbose = 1;
+  verbose = 0;
+
   nntype = int((n+1)*n/2);
 
   rc = cutmax ;
   alf = 0.3 ;
+  //  alf = 0.2 ;
 
-#if VERBOSE
-  printf ("kmax %d, ds %f, nmax %d\n",kmax,ds,nmax);
-  printf ("nlocal = %d, nghost = %d\n",atom->nlocal,atom->nghost);
-  printf ("nntypes %d, kmax %d, rc %f, n %d\n",nntype,kmax,rc,n);
-#endif
+
+  if (verbose) printf ("kmax %d, ds %f, nmax %d\n",kmax,ds,nmax);
+  if (verbose) printf ("nlocal = %d, nghost = %d\n",nlocal,nghost);
+  if (verbose) printf ("nntypes %d, kmax %d, rc %f, n %d\n",nntype,kmax,rc,n);
 
   // allocate arrays
 
@@ -1293,9 +1301,7 @@ void PairSMTBQ::tabqeq()
       } else if (j != i && j < i) {
         coultype[i][j] = coultype[j][i];
       }
-#if VERBOSE
-      printf ("i %d, j %d, coultype %d\n",i,j,coultype[i][j]);
-#endif
+      if (verbose) printf ("i %d, j %d, coultype %d\n",i,j,coultype[i][j]);
     }
   }
 
@@ -1363,10 +1369,7 @@ void PairSMTBQ::tabqeq()
   for (i = 0; i < n ; i++) {
     for (j = i; j < n ; j++) {
 
-      rc = cutmax;
-#if VERBOSE
-      printf ("cutmax %f\n",cutmax);
-#endif
+      rc = cutmax; if (verbose) printf ("cutmax %f\n",cutmax);
       m = coultype[i][j] ;
       na = params[i].ne ;
       nb = params[j].ne ;
@@ -1400,9 +1403,7 @@ void PairSMTBQ::tabqeq()
           if (dij < 0.01 && ii==0)
             {
               ii=2;
-#if VERBOSE
-              printf ("rc : %f\n",r);
-#endif
+              if (ii==2) if (verbose) printf ("rc : %f\n",r);
               rc = r ; ii=1 ;
               if ((rc+nang)>rcoupe) nang = rcoupe - rc ;
               bCoeff =  (2*dij+ddij*nang)/(dij*nang);
@@ -1453,9 +1454,7 @@ void PairSMTBQ::tabqeq()
             if (dij < 0.01 && ii==0)
               {
                 ii=2;
-#if VERBOSE
-                printf ("rc : %f\n",r);
-#endif
+                if (ii==2) if (verbose) printf ("rc : %f\n",r);
                 rc = r ; ii=1 ;
                 if ((rc+nang)>rcoupe) nang = rcoupe - rc ;
                 bCoeff =  (2*dij+ddij*nang)/(dij*nang);
@@ -1518,9 +1517,7 @@ void PairSMTBQ::tabqeq()
 
             if (dij < 0.01 && ii==0)  {
               ii=2;
-#if VERBOSE
-              printf ("rc : %f\n",r);
-#endif
+              if (ii==2) if (verbose) printf ("rc : %f\n",r);
               rc = r ; ii=1 ;
               if ((rc+nang)>rcoupe) nang = rcoupe - rc ;
               bCoeff =  (2*dij+ddij*nang)/(dij*nang);
@@ -1551,7 +1548,7 @@ void PairSMTBQ::tabqeq()
   } //for i,j
 
   //if (fichier) fichier.close() ;
-#undef VERBOSE
+
 }
 
 /* ---------------------------------------------------------------------*/

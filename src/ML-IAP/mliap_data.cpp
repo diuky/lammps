@@ -2,7 +2,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -31,12 +31,11 @@ MLIAPData::MLIAPData(LAMMPS *lmp, int gradgradflag_in, int *map_in,
                      class MLIAPModel* model_in,
                      class MLIAPDescriptor* descriptor_in,
                      class PairMLIAP* pairmliap_in) :
-  Pointers(lmp), f(nullptr), gradforce(nullptr), betas(nullptr),
+  Pointers(lmp), gradforce(nullptr), betas(nullptr),
   descriptors(nullptr), eatoms(nullptr), gamma(nullptr),
   gamma_row_index(nullptr), gamma_col_index(nullptr), egradient(nullptr),
-  numneighs(nullptr), iatoms(nullptr), ielems(nullptr), pair_i(nullptr),
-  jatoms(nullptr), jelems(nullptr), elems(nullptr), rij(nullptr),
-  graddesc(nullptr), model(nullptr), descriptor(nullptr), list(nullptr)
+  numneighs(nullptr), iatoms(nullptr), ielems(nullptr), jatoms(nullptr), jelems(nullptr),
+  rij(nullptr), graddesc(nullptr), model(nullptr), descriptor(nullptr), list(nullptr)
 {
   gradgradflag = gradgradflag_in;
   map = map_in;
@@ -86,12 +85,10 @@ MLIAPData::~MLIAPData()
   memory->destroy(gradforce);
 
   memory->destroy(iatoms);
-  memory->destroy(pair_i);
   memory->destroy(ielems);
   memory->destroy(numneighs);
   memory->destroy(jatoms);
   memory->destroy(jelems);
-  memory->destroy(elems);
   memory->destroy(rij);
   memory->destroy(graddesc);
 }
@@ -110,7 +107,6 @@ void MLIAPData::init()
 void MLIAPData::generate_neighdata(NeighList* list_in, int eflag_in, int vflag_in)
 {
   list = list_in;
-  f = atom->f;
   double **x = atom->x;
   int *type = atom->type;
 
@@ -118,25 +114,21 @@ void MLIAPData::generate_neighdata(NeighList* list_in, int eflag_in, int vflag_i
   int *numneigh = list->numneigh;
   int **firstneigh = list->firstneigh;
 
-  // grow nmax gradforce, elems arrays if necessary
+  // grow nmax gradforce array if necessary
 
   if (atom->nmax > nmax) {
     nmax = atom->nmax;
     memory->grow(gradforce,nmax,size_gradforce,
                  "MLIAPData:gradforce");
-    memory->grow(elems,nmax,"MLIAPData:elems");
  }
 
-  // clear gradforce, elems arrays
+  // clear gradforce array
 
   int nall = atom->nlocal + atom->nghost;
-  ntotal = nall;
-  for (int i = 0; i < nall; i++) {
+  for (int i = 0; i < nall; i++)
     for (int j = 0; j < size_gradforce; j++) {
       gradforce[i][j] = 0.0;
     }
-    elems[i] = 0;
-  }
 
   // grow arrays if necessary
 
@@ -161,9 +153,8 @@ void MLIAPData::generate_neighdata(NeighList* list_in, int eflag_in, int vflag_i
 
   grow_neigharrays();
 
-  npairs = 0;
   int ij = 0;
-  for (int ii = 0; ii < natomneigh; ii++) {
+  for (int ii = 0; ii < nlistatoms; ii++) {
     const int i = ilist[ii];
 
     const double xtmp = x[i][0];
@@ -187,7 +178,6 @@ void MLIAPData::generate_neighdata(NeighList* list_in, int eflag_in, int vflag_i
       const int jelem = map[jtype];
 
       if (rsq < descriptor->cutsq[ielem][jelem]) {
-        pair_i[ij] = i;
         jatoms[ij] = j;
         jelems[ij] = jelem;
         rij[ij][0] = delx;
@@ -200,12 +190,6 @@ void MLIAPData::generate_neighdata(NeighList* list_in, int eflag_in, int vflag_i
     iatoms[ii] = i;
     ielems[ii] = ielem;
     numneighs[ii] = ninside;
-    npairs += ninside;
-  }
-
-  for (int i = 0; i < nall; i++) {
-    const int itype = type[i];
-    elems[i] = map[itype];
   }
 
   eflag = eflag_in;
@@ -220,14 +204,12 @@ void MLIAPData::grow_neigharrays()
 {
 
   // grow neighbor atom arrays if necessary
-  natomneigh = list->inum;
-  if (list->ghost == 1)
-    natomneigh += list->gnum;
-  if (natomneigh_max < natomneigh) {
-    memory->grow(iatoms,natomneigh,"MLIAPData:iatoms");
-    memory->grow(ielems,natomneigh,"MLIAPData:ielems");
-    memory->grow(numneighs,natomneigh,"MLIAPData:numneighs");
-    natomneigh_max = natomneigh;
+
+  if (natomneigh_max < nlistatoms) {
+    memory->grow(iatoms,nlistatoms,"MLIAPData:iatoms");
+    memory->grow(ielems,nlistatoms,"MLIAPData:ielems");
+    memory->grow(numneighs,nlistatoms,"MLIAPData:numneighs");
+    natomneigh_max = nlistatoms;
   }
 
   // grow neighbor arrays if necessary
@@ -239,7 +221,7 @@ void MLIAPData::grow_neigharrays()
   int *type = atom->type;
 
   int nneigh = 0;
-  for (int ii = 0; ii < natomneigh; ii++) {
+  for (int ii = 0; ii < nlistatoms; ii++) {
     const int i = ilist[ii];
 
     const double xtmp = x[i][0];
@@ -267,7 +249,6 @@ void MLIAPData::grow_neigharrays()
   }
 
   if (nneigh_max < nneigh) {
-    memory->grow(pair_i,nneigh,"MLIAPData:pair_i");
     memory->grow(jatoms,nneigh,"MLIAPData:jatoms");
     memory->grow(jelems,nneigh,"MLIAPData:jelems");
     memory->grow(rij,nneigh,3,"MLIAPData:rij");
@@ -283,7 +264,6 @@ double MLIAPData::memory_usage()
 
   bytes += (double)nelements*nparams*sizeof(double);     // egradient
   bytes += (double)nmax*size_gradforce*sizeof(double);   // gradforce
-  bytes += (double)nmax*sizeof(int);                     // elems
 
   if (gradgradflag == 1) {
     bytes += (double)natomgamma_max*
@@ -302,7 +282,6 @@ double MLIAPData::memory_usage()
   bytes += (double)natomneigh_max*sizeof(int);               // ielems
   bytes += (double)natomneigh_max*sizeof(int);               // numneighs
 
-  bytes += (double)nneigh_max*sizeof(int);                   // pair_i
   bytes += (double)nneigh_max*sizeof(int);                   // jatoms
   bytes += (double)nneigh_max*sizeof(int);                   // jelems
   bytes += (double)nneigh_max*3*sizeof(double);              // rij"

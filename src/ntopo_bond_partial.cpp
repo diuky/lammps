@@ -1,7 +1,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -57,8 +57,10 @@ void NTopoBondPartial::build()
       if (atom1 == -1) {
         nmissing++;
         if (lostbond == Thermo::ERROR)
-          error->one(FLERR, "Bond atoms {} {} missing on proc {} at step {}", tag[i],
-                     bond_atom[i][m], me, update->ntimestep);
+          error->one(FLERR,
+                     "Bond atoms {} {} missing on "
+                     "proc {} at step {}",
+                     tag[i], bond_atom[i][m], me, update->ntimestep);
         continue;
       }
       atom1 = domain->closest_image(i, atom1);

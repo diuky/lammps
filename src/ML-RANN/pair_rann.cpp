@@ -2,7 +2,7 @@
 /* -*- c++ -*- ----------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/ Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -60,14 +60,14 @@ DISTRIBUTION A. Approved for public release; distribution unlimited. OPSEC#4918
 using namespace LAMMPS_NS;
 
 static const char cite_ml_rann_package[] =
-  "ML-RANN package: doi:10.1016/j.commatsci.2020.110207\n\n"
+  "ML-RANN package:\n\n"
   "@Article{Nitol2021,\n"
   " author = {Nitol, Mashroor S and Dickel, Doyl E and Barrett, Christopher D},\n"
-  " title = {Artificial Neural Network Potential for Pure Zinc},\n"
+  " title = {Artificial neural network potential for pure zinc},\n"
   " journal = {Computational Materials Science},\n"
   " year =    2021,\n"
   " volume =  188,\n"
-  " pages =   110207\n"
+  " pages =   {110207}\n"
   "}\n\n";
 
 

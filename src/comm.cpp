@@ -2,7 +2,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -91,7 +91,7 @@ Comm::Comm(LAMMPS *lmp) : Pointers(lmp)
   nthreads = 1;
 #ifdef _OPENMP
   if (lmp->kokkos) {
-    nthreads = lmp->kokkos->nthreads;
+    nthreads = lmp->kokkos->nthreads * lmp->kokkos->numa;
   } else if (getenv("OMP_NUM_THREADS") == nullptr) {
     nthreads = 1;
     if (me == 0)
@@ -222,18 +222,18 @@ void Comm::init()
   if (force->bond) maxreverse = MAX(maxreverse,force->bond->comm_reverse);
 
   for (const auto &fix : fix_list) {
-    maxforward = MAX(maxforward, fix->comm_forward);
-    maxreverse = MAX(maxreverse, fix->comm_reverse);
+    maxforward = MAX(maxforward,fix->comm_forward);
+    maxreverse = MAX(maxreverse,fix->comm_reverse);
   }
 
-  for (const auto &compute : modify->get_compute_list()) {
-    maxforward = MAX(maxforward,compute->comm_forward);
-    maxreverse = MAX(maxreverse,compute->comm_reverse);
+  for (int i = 0; i < modify->ncompute; i++) {
+    maxforward = MAX(maxforward,modify->compute[i]->comm_forward);
+    maxreverse = MAX(maxreverse,modify->compute[i]->comm_reverse);
   }
 
-  for (const auto &dump: output->get_dump_list()) {
-    maxforward = MAX(maxforward,dump->comm_forward);
-    maxreverse = MAX(maxreverse,dump->comm_reverse);
+  for (int i = 0; i < output->ndump; i++) {
+    maxforward = MAX(maxforward,output->dump[i]->comm_forward);
+    maxreverse = MAX(maxreverse,output->dump[i]->comm_reverse);
   }
 
   if (force->newton == 0) maxreverse = 0;
@@ -247,7 +247,8 @@ void Comm::init()
   maxexchange_atom = atom->avec->maxexchange;
 
   maxexchange_fix_dynamic = 0;
-  for (const auto &fix : fix_list) if (fix->maxexchange_dynamic) maxexchange_fix_dynamic = 1;
+  for (const auto &fix : fix_list)
+    if (fix->maxexchange_dynamic) maxexchange_fix_dynamic = 1;
 
   if ((mode == Comm::MULTI) && (neighbor->style != Neighbor::MULTI))
     error->all(FLERR,"Cannot use comm mode multi without multi-style neighbor lists");
@@ -269,7 +270,8 @@ void Comm::init()
 void Comm::init_exchange()
 {
   maxexchange_fix = 0;
-  for (const auto &fix : modify->get_fix_list()) maxexchange_fix += fix->maxexchange;
+  for (const auto &fix : modify->get_fix_list())
+    maxexchange_fix += fix->maxexchange;
 
   maxexchange = maxexchange_atom + maxexchange_fix;
   bufextra = maxexchange + BUFEXTRA;
@@ -282,12 +284,12 @@ void Comm::init_exchange()
 
 void Comm::modify_params(int narg, char **arg)
 {
-  if (narg < 1) utils::missing_cmd_args(FLERR, "comm_modify", error);
+  if (narg < 1) error->all(FLERR,"Illegal comm_modify command");
 
   int iarg = 0;
   while (iarg < narg) {
     if (strcmp(arg[iarg],"mode") == 0) {
-      if (iarg+2 > narg) utils::missing_cmd_args(FLERR, "comm_modify mode", error);
+      if (iarg+2 > narg) error->all(FLERR,"Illegal comm_modify command");
       if (strcmp(arg[iarg+1],"single") == 0) {
         // need to reset cutghostuser when switching comm mode
         if (mode == Comm::MULTI) cutghostuser = 0.0;
@@ -311,25 +313,26 @@ void Comm::modify_params(int narg, char **arg)
         if (mode == Comm::MULTI) cutghostuser = 0.0;
         memory->destroy(cutusermulti);
         mode = Comm::MULTIOLD;
-      } else error->all(FLERR,"Unknown comm_modify mode argument: {}", arg[iarg+1]);
+      } else error->all(FLERR,"Illegal comm_modify command");
       iarg += 2;
     } else if (strcmp(arg[iarg],"group") == 0) {
-      if (iarg+2 > narg) utils::missing_cmd_args(FLERR, "comm_modify group", error);
+      if (iarg+2 > narg) error->all(FLERR,"Illegal comm_modify command");
       bordergroup = group->find(arg[iarg+1]);
       if (bordergroup < 0)
-        error->all(FLERR, "Invalid comm_modify keyword: group {} not found", arg[iarg+1]);
-      if (bordergroup && ((atom->firstgroupname == nullptr) || strcmp(arg[iarg+1],atom->firstgroupname) != 0))
-        error->all(FLERR, "Comm_modify group != atom_modify first group: {}", atom->firstgroupname);
+        error->all(FLERR,"Invalid group in comm_modify command");
+      if (bordergroup && (atom->firstgroupname == nullptr ||
+                          strcmp(arg[iarg+1],atom->firstgroupname) != 0))
+        error->all(FLERR,"Comm_modify group != atom_modify first group");
       iarg += 2;
     } else if (strcmp(arg[iarg],"cutoff") == 0) {
-      if (iarg+2 > narg) utils::missing_cmd_args(FLERR, "comm_modify cutoff", error);
+      if (iarg+2 > narg) error->all(FLERR,"Illegal comm_modify command");
       if (mode == Comm::MULTI)
         error->all(FLERR, "Use cutoff/multi keyword to set cutoff in multi mode");
       if (mode == Comm::MULTIOLD)
         error->all(FLERR, "Use cutoff/multi/old keyword to set cutoff in multi mode");
       cutghostuser = utils::numeric(FLERR,arg[iarg+1],false,lmp);
       if (cutghostuser < 0.0)
-        error->all(FLERR,"Invalid cutoff {} in comm_modify command", arg[iarg+1]);
+        error->all(FLERR,"Invalid cutoff in comm_modify command");
       iarg += 2;
     } else if (strcmp(arg[iarg],"cutoff/multi") == 0) {
       int i,nlo,nhi;
@@ -354,7 +357,7 @@ void Comm::modify_params(int narg, char **arg)
       cut = utils::numeric(FLERR,arg[iarg+2],false,lmp);
       cutghostuser = MAX(cutghostuser,cut);
       if (cut < 0.0)
-        error->all(FLERR,"Invalid cutoff {} in comm_modify command", arg[iarg+2]);
+        error->all(FLERR,"Invalid cutoff in comm_modify command");
       // collections use 1-based indexing externally and 0-based indexing internally
       for (i=nlo; i<=nhi; ++i)
         cutusermulti[i-1] = cut;
@@ -369,7 +372,8 @@ void Comm::modify_params(int narg, char **arg)
       if (domain->box_exist == 0)
         error->all(FLERR, "Cannot set cutoff/multi before simulation box is defined");
       const int ntypes = atom->ntypes;
-      if (iarg+3 > narg) utils::missing_cmd_args(FLERR, "comm_modify cutoff/multi/old", error);
+      if (iarg+3 > narg)
+        error->all(FLERR,"Illegal comm_modify command");
       if (cutusermultiold == nullptr) {
         memory->create(cutusermultiold,ntypes+1,"comm:cutusermultiold");
         for (i=0; i < ntypes+1; ++i)
@@ -379,7 +383,7 @@ void Comm::modify_params(int narg, char **arg)
       cut = utils::numeric(FLERR,arg[iarg+2],false,lmp);
       cutghostuser = MAX(cutghostuser,cut);
       if (cut < 0.0)
-        error->all(FLERR,"Invalid cutoff {} in comm_modify command", arg[iarg+2]);
+        error->all(FLERR,"Invalid cutoff in comm_modify command");
       for (i=nlo; i<=nhi; ++i)
         cutusermultiold[i] = cut;
       iarg += 3;
@@ -389,10 +393,10 @@ void Comm::modify_params(int narg, char **arg)
       multi_reduce = 1;
       iarg += 1;
     } else if (strcmp(arg[iarg],"vel") == 0) {
-      if (iarg+2 > narg) utils::missing_cmd_args(FLERR, "comm_modify vel", error);
+      if (iarg+2 > narg) error->all(FLERR,"Illegal comm_modify command");
       ghost_velocity = utils::logical(FLERR,arg[iarg+1],false,lmp);
       iarg += 2;
-    } else error->all(FLERR,"Unknown comm_modify keyword: {}", arg[iarg]);
+    } else error->all(FLERR,"Illegal comm_modify command");
   }
 }
 
@@ -794,6 +798,103 @@ int Comm::coord2proc(double *x, int &igx, int &igy, int &igz)
   if (igz >= procgrid[2]) igz = procgrid[2] - 1;
 
   return grid2proc[igx][igy][igz];
+}
+
+/* ----------------------------------------------------------------------
+   partition a global regular grid into one brick-shaped sub-grid per proc
+   if grid point is inside my sub-domain I own it,
+     this includes sub-domain lo boundary but excludes hi boundary
+   nx,ny,nz = extent of global grid
+     indices into the global grid range from 0 to N-1 in each dim
+   zfactor = 0.0 if the grid exactly covers the simulation box
+   zfactor > 1.0 if the grid extends beyond the +z boundary by this factor
+     used by 2d slab-mode PPPM
+     this effectively maps proc sub-grids to a smaller subset of the grid
+   nxyz lo/hi = inclusive lo/hi bounds of global grid sub-brick I own
+   if proc owns no grid cells in a dim, then nlo > nhi
+   special case: 2 procs share boundary which a grid point is exactly on
+     2 equality if tests insure a consistent decision as to which proc owns it
+------------------------------------------------------------------------- */
+
+void Comm::partition_grid(int nx, int ny, int nz, double zfactor,
+                          int &nxlo, int &nxhi, int &nylo, int &nyhi,
+                          int &nzlo, int &nzhi)
+{
+  double xfraclo,xfrachi,yfraclo,yfrachi,zfraclo,zfrachi;
+
+  if (layout != LAYOUT_TILED) {
+    xfraclo = xsplit[myloc[0]];
+    xfrachi = xsplit[myloc[0]+1];
+    yfraclo = ysplit[myloc[1]];
+    yfrachi = ysplit[myloc[1]+1];
+    zfraclo = zsplit[myloc[2]];
+    zfrachi = zsplit[myloc[2]+1];
+  } else {
+    xfraclo = mysplit[0][0];
+    xfrachi = mysplit[0][1];
+    yfraclo = mysplit[1][0];
+    yfrachi = mysplit[1][1];
+    zfraclo = mysplit[2][0];
+    zfrachi = mysplit[2][1];
+  }
+
+  nxlo = static_cast<int> (xfraclo * nx);
+  if (1.0*nxlo != xfraclo*nx) nxlo++;
+  nxhi = static_cast<int> (xfrachi * nx);
+  if (1.0*nxhi == xfrachi*nx) nxhi--;
+
+  nylo = static_cast<int> (yfraclo * ny);
+  if (1.0*nylo != yfraclo*ny) nylo++;
+  nyhi = static_cast<int> (yfrachi * ny);
+  if (1.0*nyhi == yfrachi*ny) nyhi--;
+
+  if (zfactor == 0.0) {
+    nzlo = static_cast<int> (zfraclo * nz);
+    if (1.0*nzlo != zfraclo*nz) nzlo++;
+    nzhi = static_cast<int> (zfrachi * nz);
+    if (1.0*nzhi == zfrachi*nz) nzhi--;
+  } else {
+    nzlo = static_cast<int> (zfraclo * nz/zfactor);
+    if (1.0*nzlo != zfraclo*nz) nzlo++;
+    nzhi = static_cast<int> (zfrachi * nz/zfactor);
+    if (1.0*nzhi == zfrachi*nz) nzhi--;
+  }
+
+  // OLD code
+  // could sometimes map grid points slightly outside a proc to the proc
+
+  /*
+  if (layout != LAYOUT_TILED) {
+    nxlo = static_cast<int> (xsplit[myloc[0]] * nx);
+    nxhi = static_cast<int> (xsplit[myloc[0]+1] * nx) - 1;
+
+    nylo = static_cast<int> (ysplit[myloc[1]] * ny);
+    nyhi = static_cast<int> (ysplit[myloc[1]+1] * ny) - 1;
+
+    if (zfactor == 0.0) {
+      nzlo = static_cast<int> (zsplit[myloc[2]] * nz);
+      nzhi = static_cast<int> (zsplit[myloc[2]+1] * nz) - 1;
+    } else {
+      nzlo = static_cast<int> (zsplit[myloc[2]] * nz/zfactor);
+      nzhi = static_cast<int> (zsplit[myloc[2]+1] * nz/zfactor) - 1;
+    }
+
+  } else {
+    nxlo = static_cast<int> (mysplit[0][0] * nx);
+    nxhi = static_cast<int> (mysplit[0][1] * nx) - 1;
+
+    nylo = static_cast<int> (mysplit[1][0] * ny);
+    nyhi = static_cast<int> (mysplit[1][1] * ny) - 1;
+
+    if (zfactor == 0.0) {
+      nzlo = static_cast<int> (mysplit[2][0] * nz);
+      nzhi = static_cast<int> (mysplit[2][1] * nz) - 1;
+    } else {
+      nzlo = static_cast<int> (mysplit[2][0] * nz/zfactor);
+      nzhi = static_cast<int> (mysplit[2][1] * nz/zfactor) - 1;
+    }
+  }
+  */
 }
 
 /* ----------------------------------------------------------------------

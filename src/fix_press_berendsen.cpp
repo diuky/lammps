@@ -2,7 +2,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -21,7 +21,6 @@
 #include "error.h"
 #include "fix_deform.h"
 #include "force.h"
-#include "group.h"
 #include "kspace.h"
 #include "modify.h"
 #include "update.h"
@@ -241,14 +240,14 @@ FixPressBerendsen::FixPressBerendsen(LAMMPS *lmp, int narg, char **arg) :
 
 FixPressBerendsen::~FixPressBerendsen()
 {
-  delete[] rfix;
+  delete [] rfix;
 
   // delete temperature and pressure if fix created them
 
   if (tflag) modify->delete_compute(id_temp);
   if (pflag) modify->delete_compute(id_press);
-  delete[] id_temp;
-  delete[] id_press;
+  delete [] id_temp;
+  delete [] id_press;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -267,11 +266,11 @@ void FixPressBerendsen::init()
   if (domain->triclinic)
     error->all(FLERR,"Cannot use fix press/berendsen with triclinic box");
 
-  // ensure no conflict with fix deform
+  // insure no conflict with fix deform
 
-  for (const auto &ifix : modify->get_fix_list())
-    if (strcmp(ifix->style, "^deform") == 0) {
-      int *dimflag = static_cast<FixDeform *>(ifix)->dimflag;
+  for (int i = 0; i < modify->nfix; i++)
+    if (strcmp(modify->fix[i]->style,"deform") == 0) {
+      int *dimflag = (dynamic_cast<FixDeform *>( modify->fix[i]))->dimflag;
       if ((p_flag[0] && dimflag[0]) || (p_flag[1] && dimflag[1]) ||
           (p_flag[2] && dimflag[2]))
         error->all(FLERR,"Cannot use fix press/berendsen and "
@@ -280,16 +279,18 @@ void FixPressBerendsen::init()
 
   // set temperature and pressure ptrs
 
-  temperature = modify->get_compute_by_id(id_temp);
-  if (!temperature)
-    error->all(FLERR, "Temperature compute ID {} for fix press/berendsen does not exist", id_temp);
+  int icompute = modify->find_compute(id_temp);
+  if (icompute < 0)
+    error->all(FLERR,"Temperature ID for fix press/berendsen does not exist");
+  temperature = modify->compute[icompute];
 
   if (temperature->tempbias) which = BIAS;
   else which = NOBIAS;
 
-  pressure = modify->get_compute_by_id(id_press);
-  if (!pressure)
-    error->all(FLERR, "Pressure compute ID {} for fix press/berendsen does not exist", id_press);
+  icompute = modify->find_compute(id_press);
+  if (icompute < 0)
+    error->all(FLERR,"Pressure ID for fix press/berendsen does not exist");
+  pressure = modify->compute[icompute];
 
   // Kspace setting
 
@@ -299,13 +300,13 @@ void FixPressBerendsen::init()
   // detect if any rigid fixes exist so rigid bodies move when box is remapped
   // rfix[] = indices to each fix rigid
 
-  delete[] rfix;
+  delete [] rfix;
   nrigid = 0;
   rfix = nullptr;
 
   for (int i = 0; i < modify->nfix; i++)
     if (modify->fix[i]->rigid_flag) nrigid++;
-  if (nrigid > 0) {
+  if (nrigid) {
     rfix = new int[nrigid];
     nrigid = 0;
     for (int i = 0; i < modify->nfix; i++)
@@ -459,25 +460,24 @@ int FixPressBerendsen::modify_param(int narg, char **arg)
       modify->delete_compute(id_temp);
       tflag = 0;
     }
-    delete[] id_temp;
+    delete [] id_temp;
     id_temp = utils::strdup(arg[1]);
 
-    temperature = modify->get_compute_by_id(arg[1]);
-    if (!temperature)
-      error->all(FLERR,"Could not find fix_modify temperature compute ID: ", arg[1]);
+    int icompute = modify->find_compute(arg[1]);
+    if (icompute < 0) error->all(FLERR,"Could not find fix_modify temperature ID");
+    temperature = modify->compute[icompute];
 
     if (temperature->tempflag == 0)
-      error->all(FLERR,"Fix_modify temperature compute {} does not compute temperature", arg[1]);
+      error->all(FLERR,"Fix_modify temperature ID does not compute temperature");
     if (temperature->igroup != 0 && comm->me == 0)
-      error->warning(FLERR,"Temperature compute {} for fix {} is not for group all: {}",
-                     arg[1], style, group->names[temperature->igroup]);
+      error->warning(FLERR,"Temperature for NPT is not for group all");
 
     // reset id_temp of pressure to new temperature ID
 
-    auto icompute = modify->get_compute_by_id(id_press);
-    if (!icompute)
-      error->all(FLERR,"Pressure compute ID {} for fix {} does not exist", id_press, style);
-    icompute->reset_extra_compute_fix(id_temp);
+    icompute = modify->find_compute(id_press);
+    if (icompute < 0)
+      error->all(FLERR,"Pressure ID for fix press/berendsen does not exist");
+    modify->compute[icompute]->reset_extra_compute_fix(id_temp);
 
     return 2;
 
@@ -487,13 +487,15 @@ int FixPressBerendsen::modify_param(int narg, char **arg)
       modify->delete_compute(id_press);
       pflag = 0;
     }
-    delete[] id_press;
+    delete [] id_press;
     id_press = utils::strdup(arg[1]);
 
-    pressure = modify->get_compute_by_id(arg[1]);
-    if (pressure) error->all(FLERR,"Could not find fix_modify pressure compute ID: {}", arg[1]);
+    int icompute = modify->find_compute(arg[1]);
+    if (icompute < 0) error->all(FLERR,"Could not find fix_modify pressure ID");
+    pressure = modify->compute[icompute];
+
     if (pressure->pressflag == 0)
-      error->all(FLERR,"Fix_modify pressure compute {} does not compute pressure", arg[1]);
+      error->all(FLERR,"Fix_modify pressure ID does not compute pressure");
     return 2;
   }
   return 0;

@@ -1,7 +1,7 @@
 /* -*- c++ -*- ----------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -31,11 +31,32 @@ class FixGCMC : public Fix {
   int setmask() override;
   void init() override;
   void pre_exchange() override;
+  void attempt_atomic_translation();
+  void attempt_atomic_deletion();
+  void attempt_atomic_insertion();
+  void attempt_molecule_translation();
+  void attempt_molecule_rotation();
+  void attempt_molecule_deletion();
+  void attempt_molecule_insertion();
+  void attempt_atomic_translation_full();
+  void attempt_atomic_deletion_full();
+  void attempt_atomic_insertion_full();
+  void attempt_molecule_translation_full();
+  void attempt_molecule_rotation_full();
+  void attempt_molecule_deletion_full();
+  void attempt_molecule_insertion_full();
+  double energy(int, int, tagint, double *);
+  double molecule_energy(tagint);
+  double energy_full();
+  int pick_random_gas_atom();
+  tagint pick_random_gas_molecule();
+  void toggle_intramolecular(int);
+  void update_gas_atoms_list();
   double compute_vector(int) override;
   double memory_usage() override;
   void write_restart(FILE *) override;
   void restart(char *) override;
-  void *extract(const char *, int &) override;
+  void grow_molecule_arrays(int);
 
  private:
   int molecule_group, molecule_group_bit;
@@ -118,35 +139,7 @@ class FixGCMC : public Fix {
 
   class Compute *c_pe;
 
-  // private methods
-
   void options(int, char **);
-
-  void attempt_atomic_translation();
-  void attempt_atomic_deletion();
-  void attempt_atomic_insertion();
-  void attempt_molecule_translation();
-  void attempt_molecule_rotation();
-  void attempt_molecule_deletion();
-  void attempt_molecule_insertion();
-  void attempt_atomic_translation_full();
-  void attempt_atomic_deletion_full();
-  void attempt_atomic_insertion_full();
-  void attempt_molecule_translation_full();
-  void attempt_molecule_rotation_full();
-  void attempt_molecule_deletion_full();
-  void attempt_molecule_insertion_full();
-
-  double energy(int, int, tagint, double *);
-  double energy_full();
-  double molecule_energy(tagint);
-
-  int pick_random_gas_atom();
-  tagint pick_random_gas_molecule();
-  void toggle_intramolecular(int);
-  void update_gas_atoms_list();
-
-  void grow_molecule_arrays(int);
 };
 
 }    // namespace LAMMPS_NS

@@ -1,7 +1,7 @@
 /* -*- c++ -*- ----------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -57,7 +57,7 @@ class FixPIMD : public Fix {
 
   /* ring-polymer model */
 
-  double omega_np, fbond, spring_energy, sp, virial;
+  double omega_np, fbond, spring_energy, sp;
   int x_last, x_next;
 
   void spring_force();

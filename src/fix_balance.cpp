@@ -2,7 +2,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -19,13 +19,12 @@
 #include "comm.h"
 #include "domain.h"
 #include "error.h"
-#include "fix_store_peratom.h"
+#include "fix_store.h"
 #include "force.h"
 #include "irregular.h"
 #include "kspace.h"
 #include "modify.h"
 #include "neighbor.h"
-#include "pair.h"
 #include "rcb.h"
 #include "update.h"
 
@@ -95,7 +94,7 @@ FixBalance::FixBalance(LAMMPS *lmp, int narg, char **arg) :
     }
   }
 
-  if (lbstyle == BISECTION && comm->style == Comm::BRICK)
+  if (lbstyle == BISECTION && comm->style == 0)
     error->all(FLERR,"Fix balance rcb cannot be used with comm_style brick");
 
   // create instance of Balance class
@@ -156,6 +155,9 @@ void FixBalance::post_constructor()
 
 void FixBalance::init()
 {
+  if (force->kspace) kspace_flag = 1;
+  else kspace_flag = 0;
+
   balance->init_imbalance(1);
 }
 
@@ -179,7 +181,7 @@ void FixBalance::setup_pre_exchange()
   if (update->ntimestep == lastbalance) return;
   lastbalance = update->ntimestep;
 
-  // ensure atoms are in current box & update box via shrink-wrap
+  // insure atoms are in current box & update box via shrink-wrap
   // has to be be done before rebalance() invokes Irregular::migrate_atoms()
   //   since it requires atoms be inside simulation box
   //   even though pbc() will be done again in Verlet::run()
@@ -217,7 +219,7 @@ void FixBalance::pre_exchange()
   if (update->ntimestep == lastbalance) return;
   lastbalance = update->ntimestep;
 
-  // ensure atoms are in current box & update box via shrink-wrap
+  // insure atoms are in current box & update box via shrink-wrap
   // no exchange() since doesn't matter if atoms are assigned to correct procs
 
   if (domain->triclinic) domain->x2lamda(atom->nlocal);
@@ -276,13 +278,11 @@ void FixBalance::rebalance()
   }
 
   // reset proc sub-domains
-
-  if (domain->triclinic) domain->set_lamda_box();
-  domain->set_local_box();
-
   // check and warn if any proc's subbox is smaller than neigh skin
   //   since may lead to lost atoms in comm->exchange()
 
+  if (domain->triclinic) domain->set_lamda_box();
+  domain->set_local_box();
   domain->subbox_too_small_check(neighbor->skin);
 
   // output of new decomposition
@@ -303,12 +303,9 @@ void FixBalance::rebalance()
   else if (irregular->migrate_check()) irregular->migrate_atoms();
   if (domain->triclinic) domain->lamda2x(atom->nlocal);
 
-  // notify all classes that store distributed grids
-  // so they can adjust to new proc sub-domains
+  // invoke KSpace setup_grid() to adjust to new proc sub-domains
 
-  modify->reset_grid();
-  if (force->pair) force->pair->reset_grid();
-  if (force->kspace) force->kspace->reset_grid();
+  if (kspace_flag) force->kspace->setup_grid();
 
   // pending triggers pre_neighbor() to compute final imbalance factor
   // can only be done after atoms migrate in comm->exchange()

@@ -1,7 +1,8 @@
+// clang-format off
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -12,31 +13,30 @@
 ------------------------------------------------------------------------- */
 
 #include "compute_pe_atom.h"
-
-#include "angle.h"
+#include <cstring>
 #include "atom.h"
-#include "bond.h"
+#include "update.h"
 #include "comm.h"
-#include "dihedral.h"
-#include "error.h"
 #include "force.h"
+#include "pair.h"
+#include "bond.h"
+#include "angle.h"
+#include "dihedral.h"
 #include "improper.h"
 #include "kspace.h"
-#include "memory.h"
 #include "modify.h"
-#include "pair.h"
-#include "update.h"
-
-#include <cstring>
+#include "memory.h"
+#include "error.h"
 
 using namespace LAMMPS_NS;
 
 /* ---------------------------------------------------------------------- */
 
 ComputePEAtom::ComputePEAtom(LAMMPS *lmp, int narg, char **arg) :
-    Compute(lmp, narg, arg), energy(nullptr)
+  Compute(lmp, narg, arg),
+  energy(nullptr)
 {
-  if (narg < 3) error->all(FLERR, "Illegal compute pe/atom command");
+  if (narg < 3) error->all(FLERR,"Illegal compute pe/atom command");
 
   peratom_flag = 1;
   size_peratom_cols = 0;
@@ -56,22 +56,14 @@ ComputePEAtom::ComputePEAtom(LAMMPS *lmp, int narg, char **arg) :
     fixflag = 0;
     int iarg = 3;
     while (iarg < narg) {
-      if (strcmp(arg[iarg], "pair") == 0)
-        pairflag = 1;
-      else if (strcmp(arg[iarg], "bond") == 0)
-        bondflag = 1;
-      else if (strcmp(arg[iarg], "angle") == 0)
-        angleflag = 1;
-      else if (strcmp(arg[iarg], "dihedral") == 0)
-        dihedralflag = 1;
-      else if (strcmp(arg[iarg], "improper") == 0)
-        improperflag = 1;
-      else if (strcmp(arg[iarg], "kspace") == 0)
-        kspaceflag = 1;
-      else if (strcmp(arg[iarg], "fix") == 0)
-        fixflag = 1;
-      else
-        error->all(FLERR, "Illegal compute pe/atom command");
+      if (strcmp(arg[iarg],"pair") == 0) pairflag = 1;
+      else if (strcmp(arg[iarg],"bond") == 0) bondflag = 1;
+      else if (strcmp(arg[iarg],"angle") == 0) angleflag = 1;
+      else if (strcmp(arg[iarg],"dihedral") == 0) dihedralflag = 1;
+      else if (strcmp(arg[iarg],"improper") == 0) improperflag = 1;
+      else if (strcmp(arg[iarg],"kspace") == 0) kspaceflag = 1;
+      else if (strcmp(arg[iarg],"fix") == 0) fixflag = 1;
+      else error->all(FLERR,"Illegal compute pe/atom command");
       iarg++;
     }
   }
@@ -94,7 +86,7 @@ void ComputePEAtom::compute_peratom()
 
   invoked_peratom = update->ntimestep;
   if (update->eflag_atom != invoked_peratom)
-    error->all(FLERR, "Per-atom energy was not tallied on needed timestep");
+    error->all(FLERR,"Per-atom energy was not tallied on needed timestep");
 
   // grow local energy array if necessary
   // needs to be atom->nmax in length
@@ -102,7 +94,7 @@ void ComputePEAtom::compute_peratom()
   if (atom->nmax > nmax) {
     memory->destroy(energy);
     nmax = atom->nmax;
-    memory->create(energy, nmax, "pe/atom:energy");
+    memory->create(energy,nmax,"pe/atom:energy");
     vector_atom = energy;
   }
 
@@ -161,11 +153,13 @@ void ComputePEAtom::compute_peratom()
   // add in per-atom contributions from relevant fixes
   // always only for owned atoms, not ghost
 
-  if (fixflag && modify->n_energy_atom) modify->energy_atom(nlocal, energy);
+  if (fixflag && modify->n_energy_atom)
+    modify->energy_atom(nlocal,energy);
 
   // communicate ghost energy between neighbor procs
 
-  if (force->newton || (force->kspace && force->kspace->tip4pflag)) comm->reverse_comm(this);
+  if (force->newton || (force->kspace && force->kspace->tip4pflag))
+    comm->reverse_comm(this);
 
   // zero energy of atoms not in group
   // only do this after comm since ghost contributions must be included
@@ -180,7 +174,7 @@ void ComputePEAtom::compute_peratom()
 
 int ComputePEAtom::pack_reverse_comm(int n, int first, double *buf)
 {
-  int i, m, last;
+  int i,m,last;
 
   m = 0;
   last = first + n;
@@ -192,7 +186,7 @@ int ComputePEAtom::pack_reverse_comm(int n, int first, double *buf)
 
 void ComputePEAtom::unpack_reverse_comm(int n, int *list, double *buf)
 {
-  int i, j, m;
+  int i,j,m;
 
   m = 0;
   for (i = 0; i < n; i++) {
@@ -207,6 +201,6 @@ void ComputePEAtom::unpack_reverse_comm(int n, int *list, double *buf)
 
 double ComputePEAtom::memory_usage()
 {
-  double bytes = (double) nmax * sizeof(double);
+  double bytes = (double)nmax * sizeof(double);
   return bytes;
 }

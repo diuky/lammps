@@ -2,7 +2,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -32,6 +32,7 @@
 
 #include <cmath>
 #include <cstring>
+#include <cctype>
 
 using namespace LAMMPS_NS;
 using namespace MathConst;
@@ -600,7 +601,7 @@ void PairExTeP::read_file(char *file)
         error->one(FLERR,"Illegal ExTeP parameter");
 
       nparams++;
-      if (nparams >= pow((double)nelements,3)) break;
+      if (nparams >= pow(nelements,3)) break;
     }
 
     /* F_IJ (3) */
@@ -695,13 +696,11 @@ void PairExTeP::setup()
         for (m = 0; m < nparams; m++) {
           if (i == params[m].ielement && j == params[m].jelement &&
               k == params[m].kelement) {
-            if (n >= 0) error->all(FLERR,"Potential file has a duplicate entry for: {} {} {}",
-                                   elements[i], elements[j], elements[k]);
+            if (n >= 0) error->all(FLERR,"Potential file has duplicate entry");
             n = m;
           }
         }
-        if (n < 0) error->all(FLERR,"Potential file is missing an entry for: {} {} {}",
-                              elements[i], elements[j], elements[k]);
+        if (n < 0) error->all(FLERR,"Potential file is missing an entry");
         elem3param[i][j][k] = n;
       }
 

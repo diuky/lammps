@@ -1,7 +1,8 @@
+// clang-format off
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -26,84 +27,96 @@ using namespace LAMMPS_NS;
 
 /* ---------------------------------------------------------------------- */
 
-ComputeSlice::ComputeSlice(LAMMPS *lmp, int narg, char **arg) : Compute(lmp, narg, arg)
+ComputeSlice::ComputeSlice(LAMMPS *lmp, int narg, char **arg) :
+  Compute(lmp, narg, arg),
+  nvalues(0), which(nullptr), argindex(nullptr), value2index(nullptr), ids(nullptr)
 {
-  if (narg < 7) utils::missing_cmd_args(FLERR, "compute slice", error);
+  if (narg < 7) error->all(FLERR,"Illegal compute slice command");
 
-  nstart = utils::inumeric(FLERR, arg[3], false, lmp);
-  nstop = utils::inumeric(FLERR, arg[4], false, lmp);
-  nskip = utils::inumeric(FLERR, arg[5], false, lmp);
+  MPI_Comm_rank(world,&me);
 
-  if (nstart < 1) error->all(FLERR, "Invalid compute slice nstart value {} < 1", nstart);
-  if (nstop < nstart) error->all(FLERR, "Invalid compute slice nstop value {} < {}", nstop, nstart);
-  if (nskip < 1) error->all(FLERR, "Invalid compute slice nskip value < 1: {}", nskip);
+  nstart = utils::inumeric(FLERR,arg[3],false,lmp);
+  nstop = utils::inumeric(FLERR,arg[4],false,lmp);
+  nskip = utils::inumeric(FLERR,arg[5],false,lmp);
 
-  // parse values
+  if (nstart < 1 || nstop < nstart || nskip < 1)
+    error->all(FLERR,"Illegal compute slice command");
 
-  values.clear();
+  // parse remaining values until one isn't recognized
+
+  which = new int[narg-6];
+  argindex = new int[narg-6];
+  ids = new char*[narg-6];
+  value2index = new int[narg-6];
+  nvalues = 0;
+
   for (int iarg = 6; iarg < narg; iarg++) {
     ArgInfo argi(arg[iarg]);
 
-    value_t val;
-    val.which = argi.get_type();
-    val.argindex = argi.get_index1();
-    val.id = argi.get_name();
-    val.val.c = nullptr;
+    which[nvalues] = argi.get_type();
+    argindex[nvalues] = argi.get_index1();
+    ids[nvalues] = argi.copy_name();
 
-    if ((val.which == ArgInfo::UNKNOWN) || (val.which == ArgInfo::NONE) || (argi.get_dim() > 1))
-      error->all(FLERR, "Illegal compute slice argument: {}", arg[iarg]);
+    if ((which[nvalues] == ArgInfo::UNKNOWN) || (which[nvalues] == ArgInfo::NONE)
+        || (argi.get_dim() > 1))
+      error->all(FLERR,"Illegal compute slice command");
 
-    values.push_back(val);
+    nvalues++;
   }
 
   // setup and error check
 
-  for (auto &val : values) {
-    if (val.which == ArgInfo::COMPUTE) {
-      val.val.c = modify->get_compute_by_id(val.id);
-      if (!val.val.c) error->all(FLERR, "Compute ID {} for compute slice does not exist", val.id);
-      if (val.val.c->vector_flag) {
-        if (val.argindex)
-          error->all(FLERR, "Compute slice compute {} does not calculate a global array", val.id);
-        if (nstop > val.val.c->size_vector)
-          error->all(FLERR, "Compute slice compute {} vector is accessed out-of-range", val.id);
-      } else if (val.val.c->array_flag) {
-        if (val.argindex == 0)
-          error->all(FLERR, "Compute slice compute {} does not calculate a global vector", val.id);
-        if (val.argindex > val.val.c->size_array_cols)
-          error->all(FLERR, "Compute slice compute {} array is accessed out-of-range", val.id);
-        if (nstop > val.val.c->size_array_rows)
-          error->all(FLERR, "Compute slice compute {} array is accessed out-of-range", val.id);
-      } else {
-        error->all(FLERR, "Compute slice compute {} does not calculate global vector or array",
-                   val.id);
-      }
-    } else if (val.which == ArgInfo::FIX) {
-      val.val.f = modify->get_fix_by_id(val.id);
-      if (!val.val.f) error->all(FLERR, "Fix ID {} for compute slice does not exist", val.id);
-      if (val.val.f->vector_flag) {
-        if (val.argindex)
-          error->all(FLERR, "Compute slice fix {} does not calculate a global array", val.id);
-        if (nstop > val.val.f->size_vector)
-          error->all(FLERR, "Compute slice fix {} vector is accessed out-of-range", val.id);
-      } else if (val.val.f->array_flag) {
-        if (val.argindex == 0)
-          error->all(FLERR, "Compute slice fix {} does not calculate a global vector", val.id);
-        if (val.argindex > val.val.f->size_array_cols)
-          error->all(FLERR, "Compute slice fix {} array is accessed out-of-range", val.id);
-        if (nstop > val.val.f->size_array_rows)
-          error->all(FLERR, "Compute slice fix {} array is accessed out-of-range", val.id);
-      } else {
-        error->all(FLERR, "Compute slice fix {} does not calculate global vector or array", val.id);
-      }
-    } else if (val.which == ArgInfo::VARIABLE) {
-      val.val.v = input->variable->find(val.id.c_str());
-      if (val.val.v < 0)
-        error->all(FLERR, "Variable name {} for compute slice does not exist", val.id);
-      if (val.argindex == 0 && input->variable->vectorstyle(val.val.v) == 0)
-        error->all(FLERR, "Compute slice variable {} is not vector-style variable", val.id);
-      if (val.argindex)
-        error->all(FLERR, "Compute slice vector variable {} cannot be indexed", val.id);
+  for (int i = 0; i < nvalues; i++) {
+    if (which[i] == ArgInfo::COMPUTE) {
+      int icompute = modify->find_compute(ids[i]);
+      if (icompute < 0)
+        error->all(FLERR,"Compute ID for compute slice does not exist");
+      if (modify->compute[icompute]->vector_flag) {
+        if (argindex[i])
+          error->all(FLERR,"Compute slice compute does not "
+                     "calculate a global array");
+        if (nstop > modify->compute[icompute]->size_vector)
+          error->all(FLERR,"Compute slice compute vector is "
+                     "accessed out-of-range");
+      } else if (modify->compute[icompute]->array_flag) {
+        if (argindex[i] == 0)
+          error->all(FLERR,"Compute slice compute does not "
+                     "calculate a global vector");
+        if (argindex[i] > modify->compute[icompute]->size_array_cols)
+          error->all(FLERR,"Compute slice compute array is "
+                     "accessed out-of-range");
+        if (nstop > modify->compute[icompute]->size_array_rows)
+          error->all(FLERR,"Compute slice compute array is "
+                     "accessed out-of-range");
+      } else error->all(FLERR,"Compute slice compute does not calculate "
+                        "global vector or array");
+
+    } else if (which[i] == ArgInfo::FIX) {
+      auto ifix = modify->get_fix_by_id(ids[i]);
+      if (!ifix)
+        error->all(FLERR,"Fix ID {} for compute slice does not exist", ids[i]);
+      if (ifix->vector_flag) {
+        if (argindex[i])
+          error->all(FLERR,"Compute slice fix {} does not calculate a global array", ids[i]);
+        if (nstop > ifix->size_vector)
+          error->all(FLERR,"Compute slice fix {} vector is accessed out-of-range", ids[i]);
+      } else if (ifix->array_flag) {
+        if (argindex[i] == 0)
+          error->all(FLERR,"Compute slice fix {} does not calculate a global vector", ids[i]);
+        if (argindex[i] > ifix->size_array_cols)
+          error->all(FLERR,"Compute slice fix {} array is accessed out-of-range", ids[i]);
+        if (nstop > ifix->size_array_rows)
+          error->all(FLERR,"Compute slice fix {} array is accessed out-of-range", ids[i]);
+      } else error->all(FLERR,"Compute slice fix {} does not calculate global vector or array", ids[i]);
+
+    } else if (which[i] == ArgInfo::VARIABLE) {
+      int ivariable = input->variable->find(ids[i]);
+      if (ivariable < 0)
+        error->all(FLERR,"Variable name for compute slice does not exist");
+      if (argindex[i] == 0 && input->variable->vectorstyle(ivariable) == 0)
+        error->all(FLERR,"Compute slice variable is not vector-style variable");
+      if (argindex[i])
+        error->all(FLERR,"Compute slice vector variable cannot be indexed");
     }
   }
 
@@ -111,65 +124,68 @@ ComputeSlice::ComputeSlice(LAMMPS *lmp, int narg, char **arg) : Compute(lmp, nar
   // for vector, set intensive/extensive to mirror input values
   // for array, set intensive if all input values are intensive, else extensive
 
-  if (values.size() == 1) {
-    auto &val = values[0];
+  if (nvalues == 1) {
     vector_flag = 1;
-    size_vector = (nstop - nstart) / nskip;
-    memory->create(vector, size_vector, "slice:vector");
+    size_vector = (nstop-nstart) / nskip;
+    memory->create(vector,size_vector,"slice:vector");
 
-    if (val.which == ArgInfo::COMPUTE) {
-      if (val.argindex == 0) {
-        extvector = val.val.c->extvector;
-        if (val.val.c->extvector == -1) {
+    if (which[0] == ArgInfo::COMPUTE) {
+      int icompute = modify->find_compute(ids[0]);
+      if (argindex[0] == 0) {
+        extvector = modify->compute[icompute]->extvector;
+        if (modify->compute[icompute]->extvector == -1) {
           extlist = new int[size_vector];
           int j = 0;
-          for (int i = nstart; i < nstop; i += nskip) extlist[j++] = val.val.c->extlist[i - 1];
+          for (int i = nstart; i < nstop; i += nskip)
+            extlist[j++] = modify->compute[icompute]->extlist[i-1];
         }
-      } else
-        extvector = val.val.c->extarray;
-    } else if (val.which == ArgInfo::FIX) {
-      if (val.argindex == 0) {
-        extvector = val.val.f->extvector;
-        if (val.val.f->extvector == -1) {
+      } else extvector = modify->compute[icompute]->extarray;
+    } else if (which[0] == ArgInfo::FIX) {
+      auto ifix = modify->get_fix_by_id(ids[0]);
+      if (argindex[0] == 0) {
+        extvector = ifix->extvector;
+        if (ifix->extvector == -1) {
           extlist = new int[size_vector];
           int j = 0;
-          for (int i = nstart; i < nstop; i += nskip) extlist[j++] = val.val.f->extlist[i - 1];
+          for (int i = nstart; i < nstop; i += nskip)
+            extlist[j++] = ifix->extlist[i-1];
         }
-      } else
-        extvector = val.val.f->extarray;
-    } else if (val.which == ArgInfo::VARIABLE) {
+      } else extvector = ifix->extarray;
+    } else if (which[0] == ArgInfo::VARIABLE) {
       extvector = 0;
     }
 
   } else {
     array_flag = 1;
-    size_array_rows = (nstop - nstart) / nskip;
-    size_array_cols = values.size();
-    memory->create(array, size_array_rows, size_array_cols, "slice:array");
+    size_array_rows = (nstop-nstart) / nskip;
+    size_array_cols = nvalues;
+    memory->create(array,size_array_rows,size_array_cols,"slice:array");
 
     extarray = 0;
-    for (auto &val : values) {
-      if (val.which == ArgInfo::COMPUTE) {
-        if (val.argindex == 0) {
-          if (val.val.c->extvector == 1) extarray = 1;
-          if (val.val.c->extvector == -1) {
-            for (int j = 0; j < val.val.c->size_vector; j++)
-              if (val.val.c->extlist[j]) extarray = 1;
+    for (int i = 0; i < nvalues; i++) {
+      if (which[i] == ArgInfo::COMPUTE) {
+        int icompute = modify->find_compute(ids[i]);
+        if (argindex[i] == 0) {
+          if (modify->compute[icompute]->extvector == 1) extarray = 1;
+          if (modify->compute[icompute]->extvector == -1) {
+            for (int j = 0; j < modify->compute[icompute]->size_vector; j++)
+              if (modify->compute[icompute]->extlist[j]) extarray = 1;
           }
         } else {
-          if (val.val.c->extarray) extarray = 1;
+          if (modify->compute[icompute]->extarray) extarray = 1;
         }
-      } else if (val.which == ArgInfo::FIX) {
-        if (val.argindex == 0) {
-          if (val.val.f->extvector == 1) extarray = 1;
-          if (val.val.f->extvector == -1) {
-            for (int j = 0; j < val.val.f->size_vector; j++)
-              if (val.val.f->extlist[j]) extarray = 1;
+      } else if (which[i] == ArgInfo::FIX) {
+        auto ifix = modify->get_fix_by_id(ids[i]);
+        if (argindex[i] == 0) {
+          if (ifix->extvector == 1) extarray = 1;
+          if (ifix->extvector == -1) {
+            for (int j = 0; j < ifix->size_vector; j++)
+              if (ifix->extlist[j]) extarray = 1;
           }
         } else {
-          if (val.val.f->extarray) extarray = 1;
+          if (ifix->extarray) extarray = 1;
         }
-      } else if (val.which == ArgInfo::VARIABLE) {
+      } else if (which[i] == ArgInfo::VARIABLE) {
         // variable is always intensive, does not change extarray
       }
     }
@@ -180,7 +196,12 @@ ComputeSlice::ComputeSlice(LAMMPS *lmp, int narg, char **arg) : Compute(lmp, nar
 
 ComputeSlice::~ComputeSlice()
 {
-  delete[] extlist;
+  delete [] which;
+  delete [] argindex;
+  for (int m = 0; m < nvalues; m++) delete [] ids[m];
+  delete [] ids;
+  delete [] value2index;
+  delete [] extlist;
 
   memory->destroy(vector);
   memory->destroy(array);
@@ -192,17 +213,22 @@ void ComputeSlice::init()
 {
   // set indices and check validity of all computes,fixes
 
-  for (auto &val : values) {
-    if (val.which == ArgInfo::COMPUTE) {
-      val.val.c = modify->get_compute_by_id(val.id);
-      if (!val.val.c) error->all(FLERR, "Compute ID {} for compute slice does not exist", val.id);
-    } else if (val.which == ArgInfo::FIX) {
-      val.val.f = modify->get_fix_by_id(val.id);
-      if (!val.val.f) error->all(FLERR, "Fix ID {} for compute slice does not exist", val.id);
-    } else if (val.which == ArgInfo::VARIABLE) {
-      val.val.v = input->variable->find(val.id.c_str());
-      if (val.val.v < 0)
-        error->all(FLERR, "Variable name {} for compute slice does not exist", val.id);
+  for (int m = 0; m < nvalues; m++) {
+    if (which[m] == ArgInfo::COMPUTE) {
+      int icompute = modify->find_compute(ids[m]);
+      if (icompute < 0)
+        error->all(FLERR,"Compute ID for compute slice does not exist");
+      value2index[m] = icompute;
+    } else if (which[m] == ArgInfo::FIX) {
+      int ifix = modify->find_fix(ids[m]);
+      if (ifix < 0)
+        error->all(FLERR,"Fix ID for compute slice does not exist");
+      value2index[m] = ifix;
+    } else if (which[m] == ArgInfo::VARIABLE) {
+      int ivariable = input->variable->find(ids[m]);
+      if (ivariable < 0)
+        error->all(FLERR,"Variable name for compute slice does not exist");
+      value2index[m] = ivariable;
     }
   }
 }
@@ -213,7 +239,7 @@ void ComputeSlice::compute_vector()
 {
   invoked_vector = update->ntimestep;
 
-  extract_one(0, vector, 1);
+  extract_one(0,vector,1);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -222,7 +248,8 @@ void ComputeSlice::compute_array()
 {
   invoked_array = update->ntimestep;
 
-  for (std::size_t m = 0; m < values.size(); m++) extract_one(0, &array[m][0], values.size());
+  for (int m = 0; m < nvalues; m++)
+    extract_one(0,&array[m][0],nvalues);
 }
 
 /* ----------------------------------------------------------------------
@@ -232,67 +259,72 @@ void ComputeSlice::compute_array()
 
 void ComputeSlice::extract_one(int m, double *vec, int stride)
 {
-  auto &val = values[m];
+  int i,j;
 
   // invoke the appropriate compute if needed
 
-  if (val.which == ArgInfo::COMPUTE) {
-    if (val.argindex == 0) {
-      if (!(val.val.c->invoked_flag & Compute::INVOKED_VECTOR)) {
-        val.val.c->compute_vector();
-        val.val.c->invoked_flag |= Compute::INVOKED_VECTOR;
+  if (which[m] == ArgInfo::COMPUTE) {
+    Compute *compute = modify->compute[value2index[m]];
+
+    if (argindex[m] == 0) {
+      if (!(compute->invoked_flag & Compute::INVOKED_VECTOR)) {
+        compute->compute_vector();
+        compute->invoked_flag |= Compute::INVOKED_VECTOR;
       }
-      double *cvector = val.val.c->vector;
-      int j = 0;
-      for (int i = nstart; i < nstop; i += nskip) {
-        vec[j] = cvector[i - 1];
+      double *cvector = compute->vector;
+      j = 0;
+      for (i = nstart; i < nstop; i += nskip) {
+        vec[j] = cvector[i-1];
         j += stride;
       }
 
     } else {
-      if (!(val.val.c->invoked_flag & Compute::INVOKED_ARRAY)) {
-        val.val.c->compute_array();
-        val.val.c->invoked_flag |= Compute::INVOKED_ARRAY;
+      if (!(compute->invoked_flag & Compute::INVOKED_ARRAY)) {
+        compute->compute_array();
+        compute->invoked_flag |= Compute::INVOKED_ARRAY;
       }
-      double **carray = val.val.c->array;
-      int icol = val.argindex - 1;
-      int j = 0;
-      for (int i = nstart; i < nstop; i += nskip) {
-        vec[j] = carray[i - 1][icol];
+      double **carray = compute->array;
+      int icol = argindex[m]-1;
+      j = 0;
+      for (i = nstart; i < nstop; i += nskip) {
+        vec[j] = carray[i-1][icol];
         j += stride;
       }
     }
 
-    // access fix fields, check if fix frequency is a match
+  // access fix fields, check if fix frequency is a match
 
-  } else if (val.which == ArgInfo::FIX) {
-    if (update->ntimestep % val.val.f->global_freq)
-      error->all(FLERR, "Fix {} used in compute slice not computed at compatible time", val.id);
+  } else if (which[m] == ArgInfo::FIX) {
+    if (update->ntimestep % modify->fix[value2index[m]]->global_freq)
+      error->all(FLERR,"Fix used in compute slice not "
+                 "computed at compatible time");
+    Fix *fix = modify->fix[value2index[m]];
 
-    if (val.argindex == 0) {
-      int j = 0;
-      for (int i = nstart; i < nstop; i += nskip) {
-        vec[j] = val.val.f->compute_vector(i - 1);
+    if (argindex[m] == 0) {
+      j = 0;
+      for (i = nstart; i < nstop; i += nskip) {
+        vec[j] = fix->compute_vector(i-1);
         j += stride;
       }
     } else {
-      int icol = val.argindex - 1;
-      int j = 0;
-      for (int i = nstart; i < nstop; i += nskip) {
-        vec[j] = val.val.f->compute_array(i - 1, icol);
+      int icol = argindex[m]-1;
+      j = 0;
+      for (i = nstart; i < nstop; i += nskip) {
+        vec[j] = fix->compute_array(i-1,icol);
         j += stride;
       }
     }
 
     // invoke vector-style variable
 
-  } else if (val.which == ArgInfo::VARIABLE) {
+  } else if (which[m] == ArgInfo::VARIABLE) {
     double *varvec;
-    int nvec = input->variable->compute_vector(val.val.v, &varvec);
-    if (nvec < nstop) error->all(FLERR, "Compute slice variable {} is not long enough", val.id);
-    int j = 0;
-    for (int i = nstart; i < nstop; i += nskip) {
-      vec[j] = varvec[i - 1];
+    int nvec = input->variable->compute_vector(value2index[m],&varvec);
+    if (nvec < nstop)
+      error->all(FLERR,"Compute slice variable is not long enough");
+    j = 0;
+    for (i = nstart; i < nstop; i += nskip) {
+      vec[j] = varvec[i-1];
       j += stride;
     }
   }

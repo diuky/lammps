@@ -1,7 +1,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -23,24 +23,26 @@
 
 #include "atom.h"
 #include "citeme.h"
+#include "comm.h"
 #include "error.h"
 #include "force.h"
 #include "interlayer_taper.h"
 #include "memory.h"
 #include "neigh_list.h"
+#include "neigh_request.h"
 #include "neighbor.h"
 
 #include <cmath>
-#include <utility>
+#include <cstring>
 
 using namespace LAMMPS_NS;
 using namespace InterLayer;
 
 static const char cite_ilp_cur[] =
-    "ilp/graphene/hbn/opt potential: doi:10.1145/3458817.3476137\n"
+    "ilp/graphene/hbn/opt potential doi:10.1145/3458817.3476137\n"
     "@inproceedings{gao2021lmff\n"
-    " author = {Gao, Ping and Duan, Xiaohui and others},\n"
-    " title = {{LMFF}: Efficient and Scalable Layered Materials Force Field on Heterogeneous "
+    " author = {Gao, Ping and Duan, Xiaohui and Others},\n"
+    " title = {LMFF: Efficient and Scalable Layered Materials Force Field on Heterogeneous "
     "Many-Core Processors},\n"
     " year = {2021},\n"
     " isbn = {9781450384421},\n"
@@ -50,9 +52,9 @@ static const char cite_ilp_cur[] =
     " doi = {10.1145/3458817.3476137},\n"
     " booktitle = {Proceedings of the International Conference for High Performance Computing, "
     "Networking, Storage and Analysis},\n"
-    " pages    = {42},\n"
+    " articleno = {42},\n"
     " numpages = {14},\n"
-    " location = {St.~Louis, Missouri},\n"
+    " location = {St. Louis, Missouri},\n"
     " series = {SC'21},\n"
     "}\n\n";
 

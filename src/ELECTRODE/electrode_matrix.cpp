@@ -1,7 +1,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -28,9 +28,6 @@
 #include "math_const.h"
 #include "neigh_list.h"
 #include "pair.h"
-
-#include <cmath>
-#include <cstring>
 
 using namespace LAMMPS_NS;
 using namespace MathConst;
@@ -85,9 +82,7 @@ void ElectrodeMatrix::compute_array(double **array, bool timer_flag)
   MPI_Barrier(world);
   if (timer_flag && (comm->me == 0))
     utils::logmesg(lmp, fmt::format("KSpace time: {:.4g} s\n", MPI_Wtime() - kspace_time));
-  //cout << array[0][0] << ", " << array[0][1] << endl;
   pair_contribution(array);
-  //cout << array[0][0] << ", " << array[0][1] << endl;
   self_contribution(array);
   electrode_kspace->compute_matrix_corr(&mpos[0], array);
   if (tfflag) tf_contribution(array);
@@ -115,7 +110,7 @@ void ElectrodeMatrix::pair_contribution(double **array)
   int nlocal = atom->nlocal;
   int newton_pair = force->newton_pair;
 
-  double const etaij = eta * eta / sqrt(2.0 * eta * eta);    // see mw ewald theory eq. (29)-(30)
+  double etaij = eta * eta / sqrt(2.0 * eta * eta);    // see mw ewald theory eq. (29)-(30)
 
   // neighbor list will be ready because called from post_neighbor
   inum = list->inum;

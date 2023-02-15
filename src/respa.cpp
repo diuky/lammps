@@ -1,7 +1,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -298,7 +298,7 @@ void Respa::init()
   if (atom->torque_flag) cmd += " torque";
   fix_respa = dynamic_cast<FixRespa *>(modify->add_fix(cmd));
 
-  // ensure respa inner/middle/outer is using Pair class that supports it
+  // insure respa inner/middle/outer is using Pair class that supports it
 
   if (level_inner >= 0)
     if (force->pair && force->pair->respa_enable == 0)
@@ -372,7 +372,7 @@ void Respa::setup(int flag)
         mesg += fmt::format(" {}:{}", ilevel + 1, step[ilevel]);
 
       mesg += "\n  r-RESPA fixes :";
-      for (int l = 0; l < modify->n_post_force_respa; ++l) {
+      for (int l = 0; l < modify->n_post_force_respa_any; ++l) {
         Fix *f = modify->get_fix_by_index(modify->list_post_force_respa[l]);
         if (f->respa_level >= 0)
           mesg += fmt::format(" {}:{}[{}]", MIN(f->respa_level + 1, nlevels), f->style, f->id);

@@ -1,7 +1,7 @@
 /* -*- c++ -*- ----------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -47,7 +47,6 @@ class PairHybrid : public Pair {
   void init_style() override;
   double init_one(int, int) override;
   void setup() override;
-  void finish() override;
   void write_restart(FILE *) override;
   void read_restart(FILE *) override;
   double single(int, int, int, int, double, double, double, double &) override;
@@ -70,11 +69,10 @@ class PairHybrid : public Pair {
   double radii2cut(double, double) override;
 
  protected:
-  int nstyles;             // # of sub-styles
-  Pair **styles;           // list of Pair style classes
-  double *cutmax_style;    // max cutoff for each style
-  char **keywords;         // style name of each Pair style
-  int *multiple;           // 0 if style used once, else Mth instance
+  int nstyles;        // # of sub-styles
+  Pair **styles;      // list of Pair style classes
+  char **keywords;    // style name of each Pair style
+  int *multiple;      // 0 if style used once, else Mth instance
 
   int outerflag;    // toggle compute() when invoked by outer()
   int respaflag;    // 1 if different substyles are assigned to

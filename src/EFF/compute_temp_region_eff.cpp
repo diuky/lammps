@@ -1,7 +1,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -140,6 +140,12 @@ double ComputeTempRegionEff::compute_scalar()
   dof = domain->dimension * tarray_all[0] - extra_dof;
   if (dof < 0.0 && tarray_all[0] > 0.0)
     error->all(FLERR, "Temperature compute degrees of freedom < 0");
+
+  int one = 0;
+  for (int i = 0; i < nlocal; i++)
+    if (mask[i] & groupbit && region->match(x[i][0], x[i][1], x[i][2])) {
+      if (abs(spin[i]) == 1) one++;
+    }
 
   if (dof > 0.0)
     scalar = force->mvv2e * tarray_all[1] / (dof * force->boltz);

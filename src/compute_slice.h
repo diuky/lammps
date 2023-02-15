@@ -1,7 +1,7 @@
 /* -*- c++ -*- ----------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -33,18 +33,10 @@ class ComputeSlice : public Compute {
   void compute_array() override;
 
  private:
-  struct value_t {
-    int which;
-    int argindex;
-    std::string id;
-    union {
-      class Compute *c;
-      class Fix *f;
-      int v;
-    } val;
-  };
-  std::vector<value_t> values;
-  int nstart, nstop, nskip;
+  int me;
+  int nstart, nstop, nskip, nvalues;
+  int *which, *argindex, *value2index;
+  char **ids;
 
   void extract_one(int, double *, int);
 };

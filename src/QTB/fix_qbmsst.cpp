@@ -2,7 +2,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -45,7 +45,7 @@ using namespace MathConst;
 
 FixQBMSST::FixQBMSST(LAMMPS *lmp, int narg, char **arg) : Fix(lmp, narg, arg)
 {
-  if (narg < 5) utils::missing_cmd_args(FLERR,"fix qbmsst",error);
+  if (narg < 5) error->all(FLERR,"Illegal fix qbmsst command");
 
   if (strcmp(arg[3],"x") == 0) {
     direction = 0;
@@ -57,10 +57,11 @@ FixQBMSST::FixQBMSST(LAMMPS *lmp, int narg, char **arg) : Fix(lmp, narg, arg)
     direction = 2;
     box_change |= BOX_CHANGE_Z;
   } else {
-    error->all(FLERR,"Unknown fix qbmsst direction keyword: {}", arg[3]);
+    error->all(FLERR,"Illegal fix qbmsst command");
   }
-  velocity = utils::numeric(FLERR,arg[4],false,lmp);
-  if (velocity < 0) error->all(FLERR,"Illegal fix qbmsst velocity value {}", velocity);
+  velocity = atof(arg[4]);
+  if (velocity < 0)
+    error->all(FLERR,"Illegal fix qbmsst command");
 
   // default parameters
 

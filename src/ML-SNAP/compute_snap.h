@@ -1,7 +1,7 @@
 /* -*- c++ -*- ----------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -35,7 +35,7 @@ class ComputeSnap : public Compute {
 
  private:
   int natoms, nmax, size_peratom, lastcol;
-  int ncoeff, nvalues, yoffset, zoffset;
+  int ncoeff, nperdim, yoffset, zoffset;
   int ndims_peratom, ndims_force, ndims_virial;
   double **cutsq;
   class NeighList *list;
@@ -52,7 +52,8 @@ class ComputeSnap : public Compute {
   class SNA *snaptr;
   double cutmax;
   int quadraticflag;
-  int bikflag, bik_rows, dgradflag, dgrad_rows;
+  int bikflag;
+  int bik_rows;
 
   Compute *c_pe;
   Compute *c_virial;

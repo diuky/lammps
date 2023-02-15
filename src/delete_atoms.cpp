@@ -1,7 +1,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -278,19 +278,17 @@ void DeleteAtoms::delete_overlap(int narg, char **arg)
 
   // read args
 
-  const double cut = utils::numeric(FLERR, arg[1], false, lmp);
-  const double cutsq = cut * cut;
+  double cut = utils::numeric(FLERR, arg[1], false, lmp);
+  double cutsq = cut * cut;
 
   int igroup1 = group->find(arg[2]);
-  if (igroup1 < 0)
-    error->all(FLERR, "Could not find delete_atoms overlap first group ID {}", arg[2]);
   int igroup2 = group->find(arg[3]);
-  if (igroup2 < 0)
-    error->all(FLERR, "Could not find delete_atoms overlap second group ID {}", arg[3]);
+  if (igroup1 < 0 || igroup2 < 0)
+    error->all(FLERR, "Could not find delete_atoms group ID {}", arg[1]);
   options(narg - 4, &arg[4]);
 
-  const int group1bit = group->bitmask[igroup1];
-  const int group2bit = group->bitmask[igroup2];
+  int group1bit = group->bitmask[igroup1];
+  int group2bit = group->bitmask[igroup2];
 
   if (comm->me == 0) utils::logmesg(lmp, "System init for delete_atoms ...\n");
 
@@ -358,7 +356,6 @@ void DeleteAtoms::delete_overlap(int narg, char **arg)
 
   for (ii = 0; ii < inum; ii++) {
     i = ilist[ii];
-    if (!(mask[i] & (group1bit | group2bit))) continue;
     xtmp = x[i][0];
     ytmp = x[i][1];
     ztmp = x[i][2];
@@ -370,7 +367,6 @@ void DeleteAtoms::delete_overlap(int narg, char **arg)
       factor_lj = special_lj[sbmask(j)];
       factor_coul = special_coul[sbmask(j)];
       j &= NEIGHMASK;
-      if (!(mask[j] & (group1bit | group2bit))) continue;
 
       // if both weighting factors are 0, skip this pair
       // could be 0 and still be in neigh list for long-range Coulombics
@@ -408,7 +404,7 @@ void DeleteAtoms::delete_overlap(int narg, char **arg)
       //   if they are candidate pair, then either:
       //      another proc owns J and could delete J
       //      J is a ghost of another of my owned atoms, and I could delete J
-      //   test on tags of I,J ensures that only I or J is deleted
+      //   test on tags of I,J insures that only I or J is deleted
 
       if (j < nlocal) {
         if (dlist[j]) continue;

@@ -1,7 +1,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   LAMMPS development team: developers@lammps.org
+   Steve Plimpton, sjplimp@sandia.gov
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -21,7 +21,6 @@
 #include "comm.h"
 #include "error.h"
 #include "memory.h"
-#include "neighbor.h"
 
 #include <cstring>
 
@@ -35,7 +34,6 @@ PairZero::PairZero(LAMMPS *lmp) : Pair(lmp)
   writedata = 1;
   single_enable = 1;
   respa_enable = 1;
-  fullneighflag = 0;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -87,24 +85,14 @@ void PairZero::allocate()
 
 void PairZero::settings(int narg, char **arg)
 {
-  if (narg < 1) utils::missing_cmd_args(FLERR, "pair_style zero", error);
+  if ((narg != 1) && (narg != 2)) error->all(FLERR, "Illegal pair_style command");
 
   cut_global = utils::numeric(FLERR, arg[0], false, lmp);
-
-  // reset to defaults
-  coeffflag = 1;
-  fullneighflag = 0;
-
-  int iarg = 1;
-  while (iarg < narg) {
-    if (strcmp("nocoeff", arg[iarg]) == 0) {
+  if (narg == 2) {
+    if (strcmp("nocoeff", arg[1]) == 0)
       coeffflag = 0;
-      ++iarg;
-    } else if (strcmp("full", arg[iarg]) == 0) {
-      fullneighflag = 1;
-      ++iarg;
-    } else
-      error->all(FLERR, "Unknown pair style zero option {}", arg[iarg]);
+    else
+      error->all(FLERR, "Illegal pair_style command");
   }
 
   // reset cutoffs that have been explicitly set
@@ -144,18 +132,6 @@ void PairZero::coeff(int narg, char **arg)
   }
 
   if (count == 0) error->all(FLERR, "Incorrect args for pair coefficients");
-}
-
-/* ----------------------------------------------------------------------
-   init specific to this pair style
-------------------------------------------------------------------------- */
-
-void PairZero::init_style()
-{
-  if (fullneighflag)
-    neighbor->add_request(this, NeighConst::REQ_FULL);
-  else
-    neighbor->add_request(this, NeighConst::REQ_DEFAULT);
 }
 
 /* ----------------------------------------------------------------------
