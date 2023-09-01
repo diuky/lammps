@@ -34,23 +34,22 @@ AtomVecLpm::AtomVecLpm(LAMMPS *lmp) : AtomVec(lmp)
 
   atom->rmass_flag = 1;
   atom->lpm_flag = 1;
-  atom->vfrac_flag = 1;
 
   // strings with peratom variables to include in each AtomVec method
   // strings cannot contain fields in corresponding AtomVec default strings
   // order of fields in a string does not matter
   // except: fields_data_atom & fields_data_vel must match data file
 
-  fields_grow = {"rmass", "vfrac", "s0", "x0"};
-  fields_copy = {"rmass", "vfrac", "s0", "x0"};
+  fields_grow = {"rmass", "s0", "x0"};
+  fields_copy = {"rmass", "s0", "x0"};
   fields_comm = {"s0"};
   fields_comm_vel = {"s0"};
-  fields_border = {"rmass", "vfrac", "s0", "x0"};
-  fields_border_vel = {"rmass", "vfrac", "s0", "x0"};
-  fields_exchange = {"rmass", "vfrac", "s0", "x0"};
-  fields_restart = {"rmass", "vfrac", "s0", "x0"};
-  fields_create = {"rmass", "vfrac", "s0", "x0"};
-  fields_data_atom = {"id", "type", "vfrac", "rmass", "x"};
+  fields_border = {"rmass", "s0", "x0"};
+  fields_border_vel = {"rmass", "s0", "x0"};
+  fields_exchange = {"rmass", "s0", "x0"};
+  fields_restart = {"rmass", "s0", "x0"};
+  fields_create = {"rmass", "s0", "x0"};
+  fields_data_atom = {"id", "type", "rmass", "x"};
   fields_data_vel = {"id", "v"};
 
   setup_fields();
@@ -64,7 +63,6 @@ AtomVecLpm::AtomVecLpm(LAMMPS *lmp) : AtomVec(lmp)
 void AtomVecLpm::grow_pointers()
 {
   rmass = atom->rmass;
-  vfrac = atom->vfrac;
   s0 = atom->s0;
   x0 = atom->x0;
 }
@@ -75,7 +73,6 @@ void AtomVecLpm::grow_pointers()
 
 void AtomVecLpm::create_atom_post(int ilocal)
 {
-  vfrac[ilocal] = 1.0;
   rmass[ilocal] = 1.0;
   s0[ilocal] = DBL_MAX;
   x0[ilocal][0] = x[ilocal][0];
@@ -105,7 +102,6 @@ void AtomVecLpm::data_atom_post(int ilocal)
 
 int AtomVecLpm::property_atom(const std::string &name)
 {
-  if (name == "vfrac") return 0;
   if (name == "s0") return 1;
   return -1;
 }
@@ -123,18 +119,12 @@ void AtomVecLpm::pack_property_atom(int index, double *buf, int nvalues, int gro
 
   if (index == 0) {
     for (int i = 0; i < nlocal; i++) {
-      if (mask[i] & groupbit)
-        buf[n] = vfrac[i];
-      else
         buf[n] = 0.0;
       n += nvalues;
     }
   } else if (index == 1) {
     for (int i = 0; i < nlocal; i++) {
-      if (mask[i] & groupbit)
         buf[n] = s0[i];
-      else
-        buf[n] = 0.0;
       n += nvalues;
     }
   }

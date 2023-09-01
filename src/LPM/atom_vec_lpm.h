@@ -22,7 +22,7 @@ class AtomVecLpm : public AtomVec {
   void pack_property_atom(int, double *, int, int) override;
 
  private:
-  double *rmass, *vfrac, *s0;
+  double *rmass, *s0;
   double **x0;
 };
 
