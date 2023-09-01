@@ -1,0 +1,47 @@
+units           lj  #unitless quantities for lj potential
+boundary        s s s # non-periodic boundary conditions for the simulation system
+lattice sc 0.50  # simple cubic lattice with lattice constant 0.5
+atom_style      atomic  # default style for the atomic type: solids, metals, coarse-grain liquids
+atom_modify     map array # mapping local index to global index in array form
+
+neighbor        0.30 bin # skin distance: determine how often atoms migrate to new processors
+neigh_modify delay 10 check yes # delay building neighbor list until 10 steps since last step only if at least one atom has moved half the skin distance or more
+
+region         target block 0.0 100.0 0.0 100.0 0.0 100.0 units box # create cubic region
+create_box      1 target  # create a box in the defined regine
+create_atoms    1 region target  # create atoms inside the box according to the lattice
+region         lower block INF 0.0 INF INF INF INF units box  # left boundary
+region         upper block 99.5 INF INF INF INF INF units box  # right boundary
+region         center block INF 0.0 50.0 50.5 50.0 50.5 units box  # center point in left boundary
+
+# Define groups for different regions
+group lower region lower
+group upper region upper
+group center region center
+
+pair_style      lj/cut 2.5 # lj pair potential with the cutoff radius 2.5
+pair_coeff      1 1 1.0 1.0 2.5 # define coefficients for lj potential
+
+compute disp all displace/atom # compute displacement for each atom
+
+mass 1 1.0 # define mass
+
+
+# Run the displacement process
+run_style verlet # velocity verlet integration
+reset_timestep 0 # initialization for the timestep
+timestep 1e-4 # time step length
+velocity all set 0.0 0.0 0.0 sum no units box #initialize the velocity for each particle
+thermo 1 # output the information on command window every 1 step
+thermo_style custom step pe epair etotal # the output style
+
+# Applying boundary conditions
+fix 1 all nve
+fix 2 lower setforce 0.0 NULL NULL
+fix 3 upper setforce 0.0 NULL NULL
+fix 4 center setforce 0.0 0.0 0.0
+fix 5 upper move linear 1.0 NULL NULL units box
+
+# Set up output file in every 1000 steps
+dump 1 all custom 1000 lj_para.dmp id type x y z c_disp[1] c_disp[2] c_disp[3]
+run 10000 # run 100000 steps
