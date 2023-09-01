@@ -1,0 +1,42 @@
+units           si
+boundary        s s s
+lattice custom 1.0 a1 0.0005 0.0 0.0 a2 0.0 0.000866 0.0 a3 0.0 0.0 0.00081175 &
+basis 0.0 0.0 0.0 basis 0.5 0.5 0.0 basis 0.5 0.166667 0.5 basis 0.0 0.666667 0.5
+atom_style      lpm
+atom_modify     map array
+
+neighbor        0.00 bin
+neigh_modify once yes
+# comm_modify cutoff 0.0008
+region         target block 0.0 0.02 0.0 0.02 0.0 0.02 units box
+create_box      1 target
+create_atoms    1 region target
+region         lower block INF 0.0 INF INF INF INF units box
+region         upper block 0.02 INF INF INF INF INF units box
+
+group lower region lower
+group upper region upper
+group cont subtract all lower upper
+
+pair_style      lpm/le
+pair_coeff      * * 5 0.0005 1.6235 5.93e10 2.57e10 2.14e10 6.15e10 1.64e10
+
+compute disp all displace/atom
+
+set group all density 200
+
+
+# Run the displacement process
+
+run_style verlet
+reset_timestep 0
+timestep 1e-7
+velocity all set 0.0 0.0 0.0 sum no units box
+thermo 1
+thermo_style custom step pe epair etotal
+fix 1 all nve
+fix 2 lower setforce 0.0 0.0 0.0
+fix 3 upper setforce 0.0 0.0 0.0
+fix 4 upper move linear 0.01 0.0 0.0 units box
+dump 1 all custom 1000 hcp_mpi.dmp id type x y z c_disp[1] c_disp[2] c_disp[3]
+run 10000 post no

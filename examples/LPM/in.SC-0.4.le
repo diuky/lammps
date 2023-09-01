@@ -1,0 +1,58 @@
+units           si
+boundary        s s s
+lattice sc 0.0002
+atom_style      bond
+atom_modify     map array
+special_bonds   lj 0.0 1.0 1.0 coul 0.0 1.0 1.0
+comm_modify   cutoff 0.00029
+neighbor        0.0004 bin
+neigh_modify once yes
+neigh_modify one 10000
+
+region         target block 0.0 0.02 0.0 0.02 0.0 0.02 units box
+create_box      1 target bond/types 2 extra/bond/per/atom 18
+create_atoms    1 region target
+mass 1 0.1379
+region         lower block INF 0.0 INF INF INF INF units box
+region         upper block 0.02 INF INF INF INF INF units box
+region         center block INF 0.0 0.00999 0.0101 0.00999 0.0101 units box
+region         left block INF INF INF 0.0 INF INF units box
+region         right block INF INF 0.02 INF INF INF units box
+
+group lower region lower
+group upper region upper
+group center region center
+group left region left
+group cont subtract all lower upper
+
+pair_style bpm/spring
+pair_coeff 1 1 0.0 0.0002 1.0
+# fix 1 all nve
+create_bonds many all all 1 0.00019 0.00021
+create_bonds many all all 2 0.00028 0.00029
+
+
+bond_style vcpm
+bond_coeff 1 8.33333e4 -6687.2428 0.0002
+bond_coeff 2 8.33333e4 -6687.2428 0.00028284
+
+
+compute disp all displace/atom
+compute ss all stress/atom NULL
+compute 1 left reduce ave c_disp[2]
+
+dump 1 all custom 1100 BondlpmSC-0.4.* id type x y z c_disp[1] c_disp[2] c_disp[3] c_ss[1] c_ss[2] c_ss[3]
+run_style verlet
+reset_timestep 0
+timestep 1e-7
+velocity all set 0.0 0.0 0.0 sum no units box
+thermo 100
+fix 1 all nve
+fix 2 lower setforce 0.0 NULL NULL
+fix 3 center setforce 0.0 0.0 0.0
+fix 4 upper setforce 0.0 NULL NULL
+fix 5 upper move linear 0.1 0.0 0.0 units box
+run 1000
+min_style cg
+min_modify dmax 0.2
+minimize 1.e-10 0.0 100000 100000
