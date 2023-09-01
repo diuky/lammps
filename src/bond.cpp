@@ -176,9 +176,9 @@ void Bond::ev_tally(int i, int j, int nlocal, int newton_bond, double ebond, dou
   if (eflag_either) {
     if (eflag_global) {
       if (newton_bond)
-        energy += ebond;
+        energy += 2*ebond;
       else {
-        ebondhalf = 0.5 * ebond;
+        ebondhalf = ebond;
         if (i < nlocal) energy += ebondhalf;
         if (j < nlocal) energy += ebondhalf;
       }
@@ -191,12 +191,12 @@ void Bond::ev_tally(int i, int j, int nlocal, int newton_bond, double ebond, dou
   }
 
   if (vflag_either) {
-    v[0] = delx * delx * fbond;
-    v[1] = dely * dely * fbond;
-    v[2] = delz * delz * fbond;
-    v[3] = delx * dely * fbond;
-    v[4] = delx * delz * fbond;
-    v[5] = dely * delz * fbond;
+    v[0] = delx * delx * fbond/sqrt(delx*delx+dely*dely+delz*delz);
+    v[1] = dely * dely * fbond/sqrt(delx*delx+dely*dely+delz*delz);
+    v[2] = delz * delz * fbond/sqrt(delx*delx+dely*dely+delz*delz);
+    v[3] = delx * dely * fbond/sqrt(delx*delx+dely*dely+delz*delz);
+    v[4] = delx * delz * fbond/sqrt(delx*delx+dely*dely+delz*delz);
+    v[5] = dely * delz * fbond/sqrt(delx*delx+dely*dely+delz*delz);
 
     if (vflag_global) {
       if (newton_bond) {
@@ -208,40 +208,40 @@ void Bond::ev_tally(int i, int j, int nlocal, int newton_bond, double ebond, dou
         virial[5] += v[5];
       } else {
         if (i < nlocal) {
-          virial[0] += 0.5 * v[0];
-          virial[1] += 0.5 * v[1];
-          virial[2] += 0.5 * v[2];
-          virial[3] += 0.5 * v[3];
-          virial[4] += 0.5 * v[4];
-          virial[5] += 0.5 * v[5];
+          virial[0] += v[0];
+          virial[1] += v[1];
+          virial[2] += v[2];
+          virial[3] += v[3];
+          virial[4] += v[4];
+          virial[5] += v[5];
         }
         if (j < nlocal) {
-          virial[0] += 0.5 * v[0];
-          virial[1] += 0.5 * v[1];
-          virial[2] += 0.5 * v[2];
-          virial[3] += 0.5 * v[3];
-          virial[4] += 0.5 * v[4];
-          virial[5] += 0.5 * v[5];
+          virial[0] += v[0];
+          virial[1] += v[1];
+          virial[2] += v[2];
+          virial[3] += v[3];
+          virial[4] += v[4];
+          virial[5] += v[5];
         }
       }
     }
 
     if (vflag_atom) {
       if (newton_bond || i < nlocal) {
-        vatom[i][0] += 0.5 * v[0];
-        vatom[i][1] += 0.5 * v[1];
-        vatom[i][2] += 0.5 * v[2];
-        vatom[i][3] += 0.5 * v[3];
-        vatom[i][4] += 0.5 * v[4];
-        vatom[i][5] += 0.5 * v[5];
+        vatom[i][0] += v[0];
+        vatom[i][1] += v[1];
+        vatom[i][2] += v[2];
+        vatom[i][3] += v[3];
+        vatom[i][4] += v[4];
+        vatom[i][5] += v[5];
       }
       if (newton_bond || j < nlocal) {
-        vatom[j][0] += 0.5 * v[0];
-        vatom[j][1] += 0.5 * v[1];
-        vatom[j][2] += 0.5 * v[2];
-        vatom[j][3] += 0.5 * v[3];
-        vatom[j][4] += 0.5 * v[4];
-        vatom[j][5] += 0.5 * v[5];
+        vatom[j][0] += v[0];
+        vatom[j][1] += v[1];
+        vatom[j][2] += v[2];
+        vatom[j][3] += v[3];
+        vatom[j][4] += v[4];
+        vatom[j][5] += v[5];
       }
     }
   }
